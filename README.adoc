@@ -5,7 +5,7 @@
 This repository contains Mobile QE Functional / Integration tests. 
 
 ```
-$ git clone https://github.com/couchbaselabs/mobile-testkit.git
+$ git clone https://github.com/couchbaselabs/mobile-testkit-capella.git
 $ cd mobile-testkit/
 ```
 
