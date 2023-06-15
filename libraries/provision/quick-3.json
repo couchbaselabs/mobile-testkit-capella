@@ -1,0 +1,28 @@
+{
+    "id": "quick-3",
+    "type": "quick-start",
+    "title": "Quick Start (3 nodes)",
+    "servers": [
+      {
+        "size": 3,
+        "services": ["kv", "index", "n1ql", "fts", "cbas", "eventing"],
+        "aws": {
+          "instanceSize": "m5.xlarge",
+          "ebsSizeGib": 50
+        },
+        "azure": {
+          "instanceSize": "Standard_F8s_v2",
+          "diskSize": "64"
+        },
+        "gcp": {
+          "instanceSize": "n2-standard-4",
+          "storageSizeGib": 100
+        }
+      }
+    ],
+    "supportPackage": {
+      "type": "Developer Pro",
+      "timezone": "PT"
+    }
+  }
+  

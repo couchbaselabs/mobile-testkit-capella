@@ -1,11 +1,13 @@
 from tkinter import Variable
+from wsgiref.simple_server import server_version
 from requests import Session, session
 from requests.auth import HTTPBasicAuth
 from enum import Enum
 import json
-from datetime import datetime
+import random
+import string
 
-#project 
+# project
 class Culture(Enum):
     Mixed = 0
     English = 1
@@ -25,6 +27,9 @@ class NewProject:
         self.tenant_id = tenant_id
         self.generated = True
 
+    def to_json(self):
+        return json.dumps(self.__dict__)
+
 #project
 class ProjectPayload:
     def __init__(self, name, tenant_id, description=""):
@@ -41,44 +46,60 @@ class DiskConfig:
         self.CliDiskType = diskType
         self.scenarioDiskType = scenarioDiskType
 
+    def to_json(self):
+        return json.dumps(self.__dict__)
+
 #cluster
 class ClusterService:
     def __init__(self, type):
         self.Type = type
 
+    def to_json(self):
+        return json.dumps(self.__dict__)
+
 #cluster
 class ClusterInstance:
-    def __init__(self, type, cpu, memoryinGB):
-        self.Type = type
-        self.CPU = cpu
-        self.MemoryInGb = memoryinGB
+    def __init__(self, type, cpu=None, memoryinGB=50):
+        self.type = type
+        self.cpu = cpu
+        self.memoryInGb = memoryinGB
+    def to_json(self):
+        return json.dumps(self.__dict__)
 
 #cluster
 class ClusterDisk:
     def __init__(self, type, sizeInGB, iops):
-        self.Type = type
-        self.SizeInGb = sizeInGB
-        self.IOPS = iops
+        self.type = type
+        self.sizeInGb = sizeInGB
+        self.iops = iops
+    def to_json(self):
+        return json.dumps(self.__dict__)
 
 #cluster
 class ClusterSpecs:
-    def __init__(self, count, services, compute, disk):
-        self.Count = count
-        self.Services = services
-        self.Compute = compute
-        self.Disk = disk
+    def __init__(self, count, services=None, compute=None, disk=None):
+        self.count = count
+        self.services = services
+        self.compute = compute
+        self.disk = disk
+    def to_json(self):
+        return json.dumps(self.__dict__)
+
 #cluster
 class CreateCluster:
-    def __init__(self, cidr, projectId, provider, region, tenentId, specs, package, singleAZ, name):
+    def __init__(self, cidr, projectId, provider, region, singleAZ, name, server, timezone, specs=None):
         self.cidr = cidr
         self.projectId = projectId
         self.provider = provider
         self.region = region
-        self.tenantId = tenentId
+        self.description = ""
         self.specs = specs
-        self.package = package
         self.singleAZ = singleAZ ==  None
         self.name = name
+        self.server = server
+        self.timezone = timezone
+        self.plan = "Developer Pro"
+
 # base class
 class CapellaDeployments:
     def __init__(self, username, password,tenantID, url):
@@ -87,6 +108,9 @@ class CapellaDeployments:
         self.apiUrl = url
         self.tenantID = tenantID
         self._session = Session()
+
+    def to_json(self):
+        return json.dumps(self.__dict__)
 
     def getJwtToken(self, variableDict):
         resp = self._session.post("{}/sessions".format(self.apiUrl), auth=HTTPBasicAuth(self.username, self.password))
@@ -124,18 +148,26 @@ class CapellaDeployments:
 
     def convertClusterTemplate(self, template):
         diskType = "gp3"
-        data = json.load(template)["servers"]
-        if data[0].AWS.EbsSizeGib == "":
+        data = template["servers"]
+        if data[0]['aws']['ebsSizeGib'] == "":
             raise CapellaErrors("Failed to deploy cluster: invalid ebs size")
         iops = 3000
-        services = data[0].services
-        serviceList = list()
-        for ser in services:
-            serviceList.append(ClusterService(ser))
+        services = data[0]['services']
+        # serviceList = list()
+        # for ser in services:
+        #     serviceList.append(vars(ClusterService(ser)))
         clusterSpecs = list()
-        clusterDisk = ClusterDisk(type=diskType, sizeInGB=data[0].aws.ebsSizeGib, iops=iops)
+        clusterDiskDict = vars(ClusterDisk(type=diskType, sizeInGB=data[0]['aws']['ebsSizeGib'], iops=iops))
+        # computeDict = vars(ClusterInstance(type=data[0]['aws']['instanceSize']))
+        computeDict = "m5.xlarge"
 
-        clusterSpecs.append(ClusterSpecs(count=data[0].size, services=serviceList, compute=ClusterInstance(type=data[0].aws.instanceSize), disk=clusterDisk))
+        clusterSpecsDict = {"count": data[0]['size'], "services": ["kv",
+                "index",
+                "n1ql",
+                "fts"], "disk": clusterDiskDict, "compute": computeDict, "diskAutoScaling": {
+                "enabled": True
+            }, "provider": "aws"}
+        clusterSpecs.append(clusterSpecsDict)
         return clusterSpecs
     
     def getDeploymentOptions(self):
@@ -150,8 +182,40 @@ class CapellaDeployments:
             resp_obj = resp.json()
             self.variableDict['cidr'] = resp_obj["suggestedCidr"]
         else:
-            self.variableDict['cidr'] = "10.2.0.0/20"
+            self.variableDict['cidr'] = "10.0.8.0/23"
 
     def createCluster(self, region, provider, template):
-        
+        clusterName = ''.join(random.choices(string.ascii_lowercase +
+                             string.digits, k=8))
+        self.getDeploymentOptions()
+        cidr = self.variableDict['cidr']
+        projectId = self.variableDict['pid']
+        provider = provider
+        region = region
+        specs = self.convertClusterTemplate(template)
+        singleAZ = True
+        name = clusterName
+        server_versions = "7.1"
+        cluster = CreateCluster(cidr, projectId, provider, region, singleAZ, name, server_versions, "PT")
+        cluster = vars(cluster)
+        cluster['specs'] = specs
+        return cluster
+    
 
+    def deployCluster(self, namePrefix, region, provider, template):
+        cluster = self.createCluster(region, provider, template)
+        name =  namePrefix + cluster["name"]
+        cluster["name"] = name
+        cluster
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        cluster = json.dumps(cluster)
+        resp = self._session.post("{}/v2/organizations/{}/clusters".format(self.apiUrl, self.tenantID), data=cluster, timeout=10, headers=headers)
+        if resp.status_code == 202:
+            resp_obj = resp.json()
+            self.variableDict['clusterId'] = resp_obj['id']
+            self.variableDict['clusterName'] = name
+            print(self.variableDict)
+        else:
+            print(resp._content)
