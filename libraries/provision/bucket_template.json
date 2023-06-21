@@ -1,0 +1,12 @@
+{
+    "backupSchedule": null,
+    "bucketConflictResolution": "seqno",
+    "durabilityLevel": "none",
+    "flush": false,
+    "memoryAllocationInMb": 100,
+    "name": "test-bucket",
+    "replicas": 1,
+    "timeToLive": null,
+    "storageBackend": "couchstore",
+    "type": "couchbase"
+}

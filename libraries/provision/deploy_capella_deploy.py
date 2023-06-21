@@ -1,11 +1,35 @@
+from sre_constants import NOT_LITERAL
 from tkinter import Variable
+from uu import Error
 from wsgiref.simple_server import server_version
-from requests import Session, session
+import requests
+from requests import Response, Session, head, session
 from requests.auth import HTTPBasicAuth
 from enum import Enum
 import json
 import random
 import string
+import time
+from datetime import datetime, timedelta
+
+from urllib3 import Retry
+
+#syncgateway specs class
+class syncGatewaySpecs:
+    def __init__(self, clusterId, instanceType, desiredCapacity, name):
+        self.clusterId = clusterId
+        self.desired_capacity = desiredCapacity
+        self.name = name
+        self.compute = {"type": instanceType}
+
+#app-endpoint creation class
+class appEndPointCreate:
+    def __init__(self, bucketName, name, delta_sync=False, importFilter="", sync=""):
+        self.bucket = bucketName
+        self.name = name
+        self.delta_sync = delta_sync
+        self.import_filter = importFilter
+        self.sync = sync
 
 # project
 class Culture(Enum):
@@ -152,19 +176,11 @@ class CapellaDeployments:
         if data[0]['aws']['ebsSizeGib'] == "":
             raise CapellaErrors("Failed to deploy cluster: invalid ebs size")
         iops = 3000
-        services = data[0]['services']
-        # serviceList = list()
-        # for ser in services:
-        #     serviceList.append(vars(ClusterService(ser)))
         clusterSpecs = list()
         clusterDiskDict = vars(ClusterDisk(type=diskType, sizeInGB=data[0]['aws']['ebsSizeGib'], iops=iops))
-        # computeDict = vars(ClusterInstance(type=data[0]['aws']['instanceSize']))
         computeDict = "m5.xlarge"
 
-        clusterSpecsDict = {"count": data[0]['size'], "services": ["kv",
-                "index",
-                "n1ql",
-                "fts"], "disk": clusterDiskDict, "compute": computeDict, "diskAutoScaling": {
+        clusterSpecsDict = {"count": data[0]['size'], "services": data[0]['services'], "disk": clusterDiskDict, "compute": computeDict, "diskAutoScaling": {
                 "enabled": True
             }, "provider": "aws"}
         clusterSpecs.append(clusterSpecsDict)
@@ -177,7 +193,7 @@ class CapellaDeployments:
         headers = {
             "Authorization": f"Bearer {self.variableDict['jwt']}"
         }
-        resp = self._session.get("{}/v2/organizarion/{}/clusters/deployment-options".format(self.apiUrl, self.tenantID), headers=headers, params=params)
+        resp = self._session.get("{}/v2/organizations/{}/clusters/deployment-options".format(self.apiUrl, self.tenantID), headers=headers, params=params)
         if resp.status_code == 200:
             resp_obj = resp.json()
             self.variableDict['cidr'] = resp_obj["suggestedCidr"]
@@ -206,7 +222,6 @@ class CapellaDeployments:
         cluster = self.createCluster(region, provider, template)
         name =  namePrefix + cluster["name"]
         cluster["name"] = name
-        cluster
         headers = {
             "Authorization": f"Bearer {self.variableDict['jwt']}"
         }
@@ -216,6 +231,263 @@ class CapellaDeployments:
             resp_obj = resp.json()
             self.variableDict['clusterId'] = resp_obj['id']
             self.variableDict['clusterName'] = name
-            print(self.variableDict)
         else:
             print(resp._content)
+
+    def getCluster(self):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenanId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}".format(self.apiUrl, tenanId, projectId, clusterId), headers=headers)
+        if resp.status_code == 200:
+            resp_obj = resp.json()
+            return resp_obj['data']['status']['state']
+        else:
+            return resp
+
+    def waitForClusterHealth(self):
+        currentTime  = datetime.now()
+        while(datetime.now() < (currentTime + timedelta(minutes=130))):
+            status = self.getCluster()
+            if(type(status) == Response):
+                print(status)
+                return "Failed to get cluster status"
+            if status == "healthy":
+                print("cluster is in healthy state")
+                return None
+            if status == "deployment_failed":
+                print("cluster deployment failed")
+                return "Cluster Deployment Failed"
+            print("Cluster still deploying")
+            time.sleep(5)
+
+    def createBucket(self, template):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        self.variableDict['bucketName'] = template["name"]
+        ans = json.dumps(template)
+        resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/buckets".format(self.apiUrl, self.tenantID, self.variableDict['pid'], self.variableDict['clusterId']),headers=headers, data=ans)
+        if resp.status_code == 201:
+            print("Bucket created successfully")
+        else:
+            print(resp)
+            raise CapellaErrors("Failed to create bucket")
+        
+    def createAppService(self, instanceType):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        clusterId = self.variableDict['clusterId']
+        instanceType = instanceType
+        desiredCapacity = 2
+        backendName = "test-" + ''.join(random.choices(string.ascii_lowercase +
+                             string.digits, k=4))
+        specs = json.dumps(syncGatewaySpecs(clusterId, instanceType, desiredCapacity, backendName).__dict__)
+        resp = self._session.post("{}/v2/organizations/{}/backends".format(self.apiUrl, self.tenantID), data=specs, headers=headers)
+        if resp.status_code == 202 :
+            resp_object = resp_obj = resp.json()
+            self.variableDict['backendId'] = resp_object['id']
+            print("AppService deploy start")
+        else:
+            print(resp)
+            raise CapellaErrors("Failed to create app-service")
+
+    def getAppService(self):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenanId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        backendId = self.variableDict['backendId']
+        resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}".format(self.apiUrl, tenanId, projectId, clusterId, backendId), headers=headers)
+        if resp.status_code == 200:
+            resp_obj = resp.json()
+            return resp_obj['data']['status']['state']
+        else:
+            return resp
+        
+    def waitForAppServiceHealth(self):
+        currentTime  = datetime.now()
+        while(datetime.now() < (currentTime + timedelta(minutes=130))):
+            status = self.getAppService()
+            if(type(status) == Response):
+                print(status)
+                return "Failed to get app-service status"
+            if status == "healthy":
+                print("appservice is in healthy state")
+                return None
+            if status == "deployment_failed":
+                print("appservice deployment failed")
+                return "appservice Deployment Failed"
+            print("appservice still deploying")
+            time.sleep(5)
+
+    def createAppEndpoint(self):
+        bucketName = self.variableDict['bucketName']
+        name = "appendpoint"
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        backendId = self.variableDict['backendId']
+        specs = json.dumps(appEndPointCreate(bucketName, name).__dict__)
+        resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases".format(self.apiUrl, tenantId, projectId, clusterId, backendId), data=specs, headers=headers)
+        if resp.status_code == 200:
+            self.variableDict['endpointName'] = name
+        else:
+            print(resp)
+            raise CapellaErrors("Failed to create app endpoint")
+    
+    def getAppEndPointUrls(self):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        backendId = self.variableDict['backendId']
+        appEndPointName = self.variableDict['endpointName']
+        resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases/{}/connect".format(self.apiUrl, tenantId, projectId, clusterId, backendId, appEndPointName), headers=headers)
+        if resp.status_code == 200:
+            resp_obj = resp.json()
+            self.variableDict['adminURL'] = resp_obj['data']['adminURL']
+            self.variableDict['publicURl'] = resp_obj['data']['publicURL']
+        else:
+            print(resp)
+            raise CapellaErrors("Failed to get connection urls")
+        
+    def myIPEndpoint(self):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/myip".format(self.apiUrl, tenantId, projectId, clusterId), headers=headers)
+        if resp.status_code == 200:
+            resp_obj = resp.json()
+            return resp_obj["ip"]
+        else:
+            return resp
+    
+    def appServiceAllowIPEndpoint(self, cidr):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        payload = json.dumps({
+            "cidr": cidr,
+            "comment": "for testinf cbl"
+        })
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        backendId = self.variableDict['backendId']
+        resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/allowip".format(self.apiUrl, tenantId, projectId, clusterId, backendId), headers=headers, data=payload)
+        if resp.status_code == 200:
+            print("IP address added")
+        elif resp.status_code < 200 or resp.status_code >=300:
+            print("Unexpected error occured")
+        else:
+            print("Failed to add IP")
+            print(resp)
+
+    def appEndpointAddAdminCredentials(self, username, password):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        backendId = self.variableDict['backendId']
+        appEndPointName = self.variableDict['endpointName']
+        payload = json.dumps({
+            "name": username,
+            "password": password
+        })
+        retries = 0
+        while retries < 5:
+            try:
+                resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases/{}/adminusers".format(self.apiUrl, tenantId, projectId, clusterId, backendId, appEndPointName), headers=headers, data=payload)
+                if resp.status_code == 200:
+                    print("Admin credentials added")
+                    return
+                elif resp.status_code >= 200 and resp.status_code < 300:
+                    print("Unexpected error occurred")
+                else:
+                    print("Failed to add admin credentials")
+                    print(resp)
+                    raise CapellaErrors("Failed to add admin users")
+            except requests.exceptions.RequestException as err:
+                print("Connection Error: {} - Retrying".format(err))
+                retries += 1
+                time.sleep(5)
+        print("Maximum number of retries exceeded")
+
+    def resumeEndPoint(self):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        backendId = self.variableDict['backendId']
+        appEndPointName = self.variableDict['endpointName']
+        currentTime = datetime.now()
+        while(datetime.now() < (currentTime + timedelta(minutes=5))):
+            resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases/{}/online".format(self.apiUrl, tenantId, projectId, clusterId, backendId, appEndPointName), headers=headers)
+            if resp.status_code == 200:
+                break
+            elif resp.status_code == 404:
+                raise CapellaErrors("The resource doesn't exist")
+    
+    def appServiceGetEndPoint(self):
+        params = {
+            "page":1,
+            "perPage":10
+        }
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        backendId = self.variableDict['backendId']
+        resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases".format(self.apiUrl, tenantId, projectId, clusterId, backendId), headers=headers, params=params)
+        return resp
+
+
+    def waitForEndpointResume(self):
+        appEndPointName = self.variableDict['endpointName']
+        currentTime = datetime.now()
+        target = None
+        while(datetime.now() < (currentTime + timedelta(minutes=2))):
+            response = self.appServiceGetEndPoint()
+            if response.status_code == 200:
+                resp_obj = response.json()
+                for endpoint in resp_obj["data"]:
+                    if endpoint["data"]["name"] == appEndPointName:
+                        target = endpoint["data"]
+                if target is None:
+                    raise CapellaErrors("Endpoint not found")
+                if not "offline" in target:
+                    print("Endpoint resumed")
+                    break
+                else: 
+                    print("Endpoint is still paused")
+
+    def AppServiceSetup(self, username="admin", password="Password123,"):
+        myip = self.myIPEndpoint()
+        if type(myip) == Response:
+            raise CapellaErrors("Failed to fetch the IP")
+        cidr = myip + '/32'
+        self.appServiceAllowIPEndpoint(cidr)
+        self.resumeEndPoint()
+        self.waitForEndpointResume()
+        self.appEndpointAddAdminCredentials(username, password)

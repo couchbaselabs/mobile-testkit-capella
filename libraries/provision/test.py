@@ -1,23 +1,36 @@
 import deploy_capella_deploy
 import string
 import random
-import json 
+import json
+import time 
 
-username = "abhay.aggrawal@couchbase.com"
-password = "Dobara#22429"
-url = "https://api.sbx-1.sandbox.nonprod-project-avengers.com"
+username = ""
+password = ""
+url = "https://api.dev.nonprod-project-avengers.com"
 varialeDict=dict()
-tenantID = "640bd963-a3d4-4173-88fa-1f4257c9abbd"
+tenantID = "6af08c0a-8cab-4c1c-b257-b521575c16d0"
 deploy = deploy_capella_deploy.CapellaDeployments(username, password, tenantID, url)
 deploy.getJwtToken(varialeDict)
 
-projectName = ''.join(random.choices(string.ascii_uppercase +
+projectName ="mobile-" + ''.join(random.choices(string.ascii_uppercase +
                              string.digits, k=8))
 deploy.createProject(projectName)
 
-templateFile = "libraries/provision/quick-3.json"
-with open(templateFile, 'r') as file:
-    template = json.load(file)
-deploy.deployCluster("mobile", "us-west-2", "aws", template)
-
-deploy.deleteProject()
+clustertemplateFile = "libraries/provision/quick-3.json"
+with open(clustertemplateFile, 'r') as file:
+    clustertemplate = json.load(file)
+deploy.deployCluster("mobile", "us-west-2", "aws", clustertemplate)
+deploy.waitForClusterHealth()
+time.sleep(10)
+bucketTemplateFile = "libraries/provision/bucket_template.json"
+with open(bucketTemplateFile) as file:
+    file_contents = file.read()
+    buckettemplate = json.loads(file_contents)
+deploy.createBucket(buckettemplate)
+instanceType = "c5.2xlarge"
+deploy.createAppService(instanceType)
+deploy.waitForAppServiceHealth()
+deploy.createAppEndpoint()
+deploy.getAppEndPointUrls()
+deploy.AppServiceSetup()
+# deploy.deleteProject()
