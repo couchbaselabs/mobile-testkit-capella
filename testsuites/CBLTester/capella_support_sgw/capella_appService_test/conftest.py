@@ -137,12 +137,6 @@ def params_from_base_suite_setup(request):
     cbl_log_decoder_build = request.config.getoption("--cbl-log-decoder-build")
     liteserv_android_serial_number = request.config.getoption("--liteserv-android-serial-number")
     test_name = request.node.name
-    capellaSetup, deploy = capella.setupAppService(username, password, api_url, tenantId)
-    target_url = capellaSetup['publicURL']
-    target_admin_url = (capellaSetup['adminURL'])
-    target_public_url = capellaSetup['publicURL'].replace("wss","https")
-    target_blip_url = capellaSetup['publicURL']
-
     testserver = TestServerFactory.create(platform=liteserv_platform,
                                           version_build=liteserv_version,
                                           host=liteserv_host,
@@ -197,7 +191,12 @@ def params_from_base_suite_setup(request):
         log_info("Getting the database name")
         db_name = suite_db.getName(suite_source_db)
         assert db_name == suite_cbl_db
-
+        
+    capellaSetup, deploy = capella.setupAppService(username, password, api_url, tenantId)
+    target_url = capellaSetup['publicURL']
+    target_admin_url = (capellaSetup['adminURL'])
+    target_public_url = capellaSetup['publicURL'].replace("wss","https")
+    target_blip_url = capellaSetup['publicURL']
     yield {
         "liteserv_platform": liteserv_platform,
         "liteserv_version": liteserv_version,

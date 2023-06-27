@@ -72,15 +72,16 @@ class Replication(object):
 
         if auto_purge is not None:
             args.setString("auto_purge", auto_purge)
+
         if "CLUSTER_CONFIG" in os.environ:
             cluster_config = os.environ["CLUSTER_CONFIG"]
-        if sg_ssl_enabled(cluster_config):
-            args.setString("pinnedservercert", "sg_cert")
+            if sg_ssl_enabled(cluster_config):
+                args.setString("pinnedservercert", "sg_cert")
 
         if encryptor is not None:
             args.setMemoryPointer("encryptor", encryptor)
 
-        # here collection CBLReplicatinoCollectionType
+        # here collection CBLReplicationCollectionType
         if collection is not None:
             args.setArray("collections", collection)
 
