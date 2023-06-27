@@ -72,8 +72,8 @@ class Replication(object):
 
         if auto_purge is not None:
             args.setString("auto_purge", auto_purge)
-
-        cluster_config = os.environ["CLUSTER_CONFIG"]
+        if "CLUSTER_CONFIG" in os.environ:
+            cluster_config = os.environ["CLUSTER_CONFIG"]
         if sg_ssl_enabled(cluster_config):
             args.setString("pinnedservercert", "sg_cert")
 
