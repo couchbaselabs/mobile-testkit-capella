@@ -58,15 +58,16 @@ def test_replication_configuration_valid_values(params_from_base_test_setup, num
     sg_db = "db"
     appService_url_public = params_from_base_test_setup["appService_url_public"]
     appService_url_admin = params_from_base_test_setup["appService_url_admin"]
-    appService_blip_url = params_from_base_test_setup["target_url"]
+    appService_blip_url = params_from_base_test_setup["target_blip_url"]
     base_url = params_from_base_test_setup["base_url"]
     db = params_from_base_test_setup["db"]
-    log_info(type(db))
     cbl_db = params_from_base_test_setup["source_db"]
 
     channels_sg = ["ABC"]
-    username = "autotest"
-    password = "Password_123"
+    admin_username = "admin"
+    admin_password = "Password123,"
+    username = "user"
+    password = "Password123,"
     number_of_updates = 2
 
     # Create CBL database
@@ -75,20 +76,20 @@ def test_replication_configuration_valid_values(params_from_base_test_setup, num
 
     # Configure replication with push_pull
     replicator = Replication(base_url)
-    auth = (username, password)
-    sg_client.create_user(appService_url_admin, sg_db, username, password, channels=channels_sg, auth=auth)
+    auth = (admin_username, admin_password)
+    sg_client.create_user(appService_url_admin, None, username, password, channels=channels_sg, auth=auth)
     session, replicator_authenticator, repl = replicator.create_session_configure_replicate(
-        base_url, appService_url_admin, sg_db, username, password, channels_sg, sg_client, cbl_db, appService_blip_url, continuous=continuous, replication_type="push_pull", auth=auth)
+        base_url, appService_url_admin, username, password, channels_sg, sg_client, cbl_db, appService_blip_url, continuous=continuous, replication_type="push_pull", auth=auth)
 
-    sg_docs = sg_client.get_all_docs(url=appService_url_public, db=sg_db, auth=session)
-    sg_client.update_docs(url=appService_url_public, db=sg_db, docs=sg_docs["rows"], number_updates=number_of_updates, auth=session)
+    sg_docs = sg_client.get_all_docs(url=appService_url_public, auth=session)
+    sg_client.update_docs(url=appService_url_public, db=None, docs=sg_docs["rows"], number_updates=number_of_updates, auth=session)
     replicator.wait_until_replicator_idle(repl)
     total = replicator.getTotal(repl)
     completed = replicator.getCompleted(repl)
     assert total == completed, "total is not equal to completed"
     time.sleep(2)  # wait until replication is done
-    sg_docs = sg_client.get_all_docs(url=appService_url_admin, db=sg_db, include_docs=True, auth=auth)
-    sg_docs = sg_docs["rows"]
+    sg_docs = sg_client.get_all_docs(url=appService_url_public, include_docs=True, auth=session)
+    sg_docs = sg_docs["rows"] 
 
     # Verify database doc counts
     cbl_doc_count = db.getCount(cbl_db)

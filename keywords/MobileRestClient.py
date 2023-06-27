@@ -99,9 +99,7 @@ class MobileRestClient:
     """
 
     def __init__(self):
-        headers = {"Content-Type": "application/json"}
         self._session = Session()
-        self._session.headers = headers
         self._session.verify = False
 
     def merge(self, *doc_lists):
@@ -213,16 +211,18 @@ class MobileRestClient:
 
         return resp_obj
 
-    def request_session(self, url, db, name, password=None, ttl=86400, auth=None):
+    def request_session(self, url, name, db=None, password=None, ttl=86400, auth=None):
         data = {
             "name": name,
             "ttl": ttl
         }
         if password:
             data["password"] = password
-
         if auth:
-            resp = self._session.post("{}/{}/_session".format(url, db), data=json.dumps(data), auth=HTTPBasicAuth(auth[0], auth[1]))
+            if db is None:
+                resp = self._session.post("{}/_session".format(url), data=json.dumps(data), auth=HTTPBasicAuth(auth[0], auth[1]))
+            else:
+                resp = self._session.post("{}/{}/_session".format(url, db), data=json.dumps(data), auth=HTTPBasicAuth(auth[0], auth[1]))
         else:
             resp = self._session.post("{}/{}/_session".format(url, db), data=json.dumps(data))
 
@@ -230,8 +230,11 @@ class MobileRestClient:
         resp.raise_for_status()
         return resp
 
-    def create_session(self, url, db, name, password=None, ttl=86400, auth=None):
-        resp = self.request_session(url, db, name, password, ttl, auth)
+    def create_session(self, url, name, db=None ,password=None, ttl=86400, auth=None):
+        if db is None:
+            resp = self.request_session(url, name, password=password, ttl=ttl, auth=auth)
+        else:
+            resp = self.request_session(url, name, db=db, password=password, ttl=ttl, auth=auth)
         resp_obj = resp.json()
 
         if "cookie_name" in resp_obj:
@@ -417,11 +420,16 @@ class MobileRestClient:
 
         if collection_access is not None:
             data["collection_access"] = collection_access
-
         if auth:
-            resp = self._session.post("{}/{}/_user/".format(url, db), data=json.dumps(data), auth=HTTPBasicAuth(auth[0], auth[1]))
+            if db is None:
+                resp = self._session.post("{}/_user/".format(url), data=json.dumps(data), auth=HTTPBasicAuth(auth[0], auth[1]))
+            else:
+                resp = self._session.post("{}/{}/_user/".format(url, db), data=json.dumps(data), auth=HTTPBasicAuth(auth[0], auth[1]))
         else:
-            resp = self._session.post("{}/{}/_user/".format(url, db), data=json.dumps(data))
+            if db is None:
+                resp = self._session.post("{}/_user/".format(url), data=json.dumps(data))
+            else:
+                resp = self._session.post("{}/{}/_user/".format(url, db), data=json.dumps(data))
 
         log_r(resp)
         resp.raise_for_status()
@@ -902,13 +910,19 @@ class MobileRestClient:
         params["show_exp"] = "true"
         if collection is not None:
             if scope is None:
-                url_string = "{}/{}.{}/{}".format(url, db, collection, doc_id)
+                if db == None:
+                    url_string = "{}.{}/{}".format(url, collection, doc_id)
+                else:
+                    url_string = "{}/{}.{}/{}".format(url, db, collection, doc_id)
             else:
                 url_string = "{}/{}.{}.{}/{}".format(url, db, scope, collection, doc_id)
         else:
             if scope is not None:
                 assert "When the scope is defined, the collection must be  defined  as well"
-            url_string = "{}/{}/{}".format(url, db, doc_id)
+            if db == None:
+                url_string = "{}/{}".format(url, doc_id)
+            else:
+                url_string = "{}/{}/{}".format(url, db, doc_id)
 
         if auth_type == AuthType.session:
             resp = self._session.get(url_string, params=params, cookies=dict(SyncGatewaySession=auth[1]))
@@ -1365,7 +1379,7 @@ class MobileRestClient:
 
         auth_type, auth = get_auth_type(auth)
         if doc is None:
-            doc = self.get_doc(url, db, doc_id, auth)
+                doc = self.get_doc(url, db, doc_id, auth)
 
         if rev is None:
             current_rev = doc["_rev"]
@@ -1409,12 +1423,21 @@ class MobileRestClient:
             if property_updater is not None:
                 types.verify_is_callable(property_updater)
                 doc = property_updater(doc)
-            if auth_type == AuthType.session:
-                resp = self._session.put("{}/{}/{}".format(url, db, doc_id), data=json.dumps(doc, cls=MyEncoder), cookies=dict(SyncGatewaySession=auth[1]))
-            elif auth_type == AuthType.http_basic:
-                resp = self._session.put("{}/{}/{}".format(url, db, doc_id), data=json.dumps(doc, cls=MyEncoder), auth=auth)
+
+            if db == None:
+                if auth_type == AuthType.session:
+                    resp = self._session.put("{}/{}".format(url, doc_id), data=json.dumps(doc, cls=MyEncoder), cookies=dict(SyncGatewaySession=auth[1]))
+                elif auth_type == AuthType.http_basic:
+                    resp = self._session.put("{}/{}".format(url, doc_id), data=json.dumps(doc, cls=MyEncoder), auth=auth)
+                else:
+                    resp = self._session.put("{}/{}".format(url, doc_id), data=json.dumps(doc, cls=MyEncoder))
             else:
-                resp = self._session.put("{}/{}/{}".format(url, db, doc_id), data=json.dumps(doc, cls=MyEncoder))
+                if auth_type == AuthType.session:
+                    resp = self._session.put("{}/{}/{}".format(url, db, doc_id), data=json.dumps(doc, cls=MyEncoder), cookies=dict(SyncGatewaySession=auth[1]))
+                elif auth_type == AuthType.http_basic:
+                    resp = self._session.put("{}/{}/{}".format(url, db, doc_id), data=json.dumps(doc, cls=MyEncoder), auth=auth)
+                else:
+                    resp = self._session.put("{}/{}/{}".format(url, db, doc_id), data=json.dumps(doc, cls=MyEncoder))
 
             log_r(resp, info=False)
             resp.raise_for_status()
@@ -1587,7 +1610,7 @@ class MobileRestClient:
 
         return resp_obj
 
-    def get_all_docs(self, url, db, auth=None, include_docs=False, scope=None, collection=None):
+    def get_all_docs(self, url, db=None, auth=None, include_docs=False, scope=None, collection=None):
         """ Get all docs for a database via _all_docs """
 
         auth_type, auth = get_auth_type(auth)
@@ -1595,7 +1618,10 @@ class MobileRestClient:
         if include_docs:
             params["include_docs"] = "true"
 
-        all_docs_url = "{}/{}/_all_docs".format(url, db)
+        if db == None:
+            all_docs_url = "{}/_all_docs".format(url)
+        else:
+            all_docs_url = "{}/{}/_all_docs".format(url, db)
         if scope is not None:
             if collection is None:
                 assert "If a scope is defined, there shiuld also be a collection"

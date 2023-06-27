@@ -24,6 +24,7 @@ from CBLClient.DataTypeInitiator import DataTypeInitiator
 from CBLClient.SessionAuthenticator import SessionAuthenticator
 from CBLClient.Utils import Utils
 from CBLClient.ReplicatorConfiguration import ReplicatorConfiguration
+import libraries.provision.test as capella
 
 
 def pytest_addoption(parser):
@@ -33,9 +34,9 @@ def pytest_addoption(parser):
                      help="Skip download and launch TestServer, use local debug build",
                      default=False)
 
-    parser.addoption("--appService-url",
+    parser.addoption("--api-url",
                      action="store",
-                     help="url of the capella app-service")
+                     help="url of the capella")
     
     parser.addoption("--username",
                      action="store",
@@ -43,7 +44,11 @@ def pytest_addoption(parser):
 
     parser.addoption("--password",
                      action="store",
-                     hhelp="password to sign-in on capella")
+                     help="password to sign-in on capella")
+    
+    parser.addoption("--tenantId",
+                     action="store",
+                     help="tenantId of the capella organization")
 
     parser.addoption("--liteserv-platform",
                      action="store",
@@ -116,7 +121,10 @@ def params_from_base_suite_setup(request):
     liteserv_host = request.config.getoption("--liteserv-host")
     liteserv_port = request.config.getoption("--liteserv-port")
 
-    appService_url = request.config.getoption("--appService-url")
+    api_url = request.config.getoption("--api-url")
+    username = request.config.getoption("--username")
+    password = request.config.getoption("--password")
+    tenantId = request.config.getoption("--tenantId")
     use_local_testserver = request.config.getoption("--use-local-testserver")
     create_db_per_test = request.config.getoption("--create-db-per-test")
     create_db_per_suite = request.config.getoption("--create-db-per-suite")
@@ -124,15 +132,16 @@ def params_from_base_suite_setup(request):
     cbl_ce = request.config.getoption("--cbl-ce")
     flush_memory_per_test = request.config.getoption("--flush-memory-per-test")
     debug_mode = request.config.getoption("--debug-mode")
-    delta_sync_enabled = request.config.getoption("--delta-sync") or None
     enable_file_logging = request.config.getoption("--enable-file-logging")
     cbl_log_decoder_platform = request.config.getoption("--cbl-log-decoder-platform")
     cbl_log_decoder_build = request.config.getoption("--cbl-log-decoder-build")
     liteserv_android_serial_number = request.config.getoption("--liteserv-android-serial-number")
-    endpoint_name = "db"
     test_name = request.node.name
-    target_url = "ws://{}:4984/{}".format(appService_url, endpoint_name)
-    target_admin_url = "ws://{}:4985/{}".format(appService_url, endpoint_name)
+    capellaSetup = capella.setupAppService(username, password, api_url, tenantId)
+    target_url = capellaSetup['publicURL']
+    target_admin_url = (capellaSetup['adminURL'])
+    target_public_url = capellaSetup['publicURL'].replace("wss","https")
+    target_blip_url = capellaSetup['publicURL']
 
     testserver = TestServerFactory.create(platform=liteserv_platform,
                                           version_build=liteserv_version,
@@ -201,16 +210,17 @@ def params_from_base_suite_setup(request):
         "testserver": testserver,
         "device_enabled": device_enabled,
         "flush_memory_per_test": flush_memory_per_test,
-        "delta_sync_enabled": delta_sync_enabled,
         "enable_file_logging": enable_file_logging,
         "cbl_log_decoder_platform": cbl_log_decoder_platform,
         "cbl_log_decoder_build": cbl_log_decoder_build,
         "suite_db_log_files": suite_db_log_files,
         "cbl_ce": cbl_ce,
-        "appService_url": appService_url,
-        "endpoint_name": endpoint_name,
         "target_url": target_url,
-        "target_admin_url": target_admin_url
+        "target_public_url": target_public_url,
+        "target_admin_url": target_admin_url,
+        "base_url": base_url,
+        "capellaSetup": capellaSetup,
+        "target_blip_url": target_blip_url
     }
 
     if request.node.testsfailed != 0 and enable_file_logging and create_db_per_suite is not None:
@@ -254,30 +264,26 @@ def params_from_base_suite_setup(request):
 def params_from_base_test_setup(request, params_from_base_suite_setup):
     liteserv_host = params_from_base_suite_setup["liteserv_host"]
     liteserv_port = params_from_base_suite_setup["liteserv_port"]
-    appService_url = params_from_base_suite_setup["appService_url"]
-    endpoint_name = params_from_base_suite_setup["endpoint_name"]
     create_db_per_test = params_from_base_suite_setup["create_db_per_test"]
-    no_conflicts_enabled = params_from_base_suite_setup["no_conflicts_enabled"]
     target_admin_url = params_from_base_suite_setup["target_admin_url"]
     suite_source_db = params_from_base_suite_setup["suite_source_db"]
     suite_cbl_db = params_from_base_suite_setup["suite_cbl_db"]
     test_name = request.node.name
+    capellaSetup = params_from_base_suite_setup["capellaSetup"]
     target_url = params_from_base_suite_setup["target_url"]
     base_url = params_from_base_suite_setup["base_url"]
-    sync_gateway_version = params_from_base_suite_setup["sync_gateway_version"]
-    sg_config = params_from_base_suite_setup["sg_config"]
     liteserv_platform = params_from_base_suite_setup["liteserv_platform"]
     testserver = params_from_base_suite_setup["testserver"]
     device_enabled = params_from_base_suite_setup["device_enabled"]
     liteserv_version = params_from_base_suite_setup["liteserv_version"]
-    delta_sync_enabled = params_from_base_suite_setup["delta_sync_enabled"]
     enable_file_logging = params_from_base_suite_setup["enable_file_logging"]
     cbl_log_decoder_platform = params_from_base_suite_setup["cbl_log_decoder_platform"]
     cbl_log_decoder_build = params_from_base_suite_setup["cbl_log_decoder_build"]
     use_local_testserver = request.config.getoption("--use-local-testserver")
     cbl_ce = params_from_base_suite_setup["cbl_ce"]
-    public = "http://{}:4984".format(appService_url)
-    admin = "http://{}:4985".format(appService_url)
+    public = params_from_base_suite_setup["target_public_url"]
+    admin = params_from_base_suite_setup["target_admin_url"]
+    target_blip_url = params_from_base_suite_setup["target_blip_url"]
 
     source_db = None
     test_name_cp = test_name.replace("/", "-")
@@ -330,14 +336,11 @@ def params_from_base_test_setup(request, params_from_base_suite_setup):
         "liteserv_platform": liteserv_platform,
         "target_url": target_url,
         "target_admin_url": target_admin_url,
-        "no_conflicts_enabled": no_conflicts_enabled,
-        "sync_gateway_version": sync_gateway_version,
         "source_db": source_db,
         "cbl_db": cbl_db,
         "suite_source_db": suite_source_db,
         "suite_cbl_db": suite_cbl_db,
         "base_url": base_url,
-        "sg_config": sg_config,
         "db": db,
         "device_enabled": device_enabled,
         "testserver": testserver,
@@ -345,7 +348,6 @@ def params_from_base_test_setup(request, params_from_base_suite_setup):
         "log_filename": log_filename,
         "test_db_log_file": test_db_log_file,
         "liteserv_version": liteserv_version,
-        "delta_sync_enabled": delta_sync_enabled,
         "cbl_log_decoder_platform": cbl_log_decoder_platform,
         "cbl_log_decoder_build": cbl_log_decoder_build,
         "enable_file_logging": enable_file_logging,
@@ -353,7 +355,8 @@ def params_from_base_test_setup(request, params_from_base_suite_setup):
         "cbl_ce": cbl_ce,
         "appService_url_public": public,
         "appService_url_admin": admin,
-        "endpoint_name": endpoint_name
+        "capellaSetup": capellaSetup,
+        "target_blip_url": target_blip_url
     }
 
     if request.node.rep_call.failed and enable_file_logging and create_db_per_test is not None:
@@ -396,8 +399,6 @@ def class_init(request, params_from_base_suite_setup):
     base_url = params_from_base_suite_setup["base_url"]
     liteserv_platform = params_from_base_suite_setup["liteserv_platform"]
     liteserv_version = params_from_base_suite_setup["liteserv_version"]
-    disable_encryption = params_from_base_suite_setup["disable_encryption"]
-    encryption_password = params_from_base_suite_setup["encryption_password"]
     db_obj = Database(base_url)
     scope_obj = Scope(base_url)
     collection_obj = Collection(base_url)
@@ -413,10 +414,7 @@ def class_init(request, params_from_base_suite_setup):
     session_auth_obj = SessionAuthenticator(base_url)
     sg_client = MobileRestClient()
 
-    if disable_encryption:
-        db_config = db_obj.configure()
-    else:
-        db_config = db_obj.configure(password=encryption_password)
+    db_config = db_obj.configure()
     db = db_obj.create("cbl-init-db", db_config)
 
     request.cls.db_obj = db_obj
@@ -452,13 +450,8 @@ def setup_customized_teardown_test(request, params_from_base_test_setup):
     cbl_db_name2 = "cbl_db2" + str(time.time())
     cbl_db_name3 = "cbl_db3" + str(time.time())
     base_url = params_from_base_test_setup["base_url"]
-    disable_encryption = params_from_base_test_setup["disable_encryption"]
-    encryption_password = params_from_base_test_setup["encryption_password"]
     db = Database(base_url)
-    if disable_encryption:
-        db_config = db.configure()
-    else:
-        db_config = db.configure(password=encryption_password)
+    db_config = db.configure()
     cbl_db1 = db.create(cbl_db_name1, db_config)
     cbl_db2 = db.create(cbl_db_name2, db_config)
     cbl_db3 = db.create(cbl_db_name3, db_config)

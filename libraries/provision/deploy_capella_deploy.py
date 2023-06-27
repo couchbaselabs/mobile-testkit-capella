@@ -1,7 +1,4 @@
-from sre_constants import NOT_LITERAL
-from tkinter import Variable
-from uu import Error
-from wsgiref.simple_server import server_version
+from keywords.utils import log_info
 import requests
 from requests import Response, Session, head, session
 from requests.auth import HTTPBasicAuth
@@ -133,16 +130,14 @@ class CapellaDeployments:
         self.tenantID = tenantID
         self._session = Session()
 
-    def to_json(self):
-        return json.dumps(self.__dict__)
-
     def getJwtToken(self, variableDict):
         resp = self._session.post("{}/sessions".format(self.apiUrl), auth=HTTPBasicAuth(self.username, self.password))
         if resp.status_code == 200:
             resp_obj = resp.json()
             variableDict['jwt'] = resp_obj["jwt"]
             self.variableDict = variableDict
-            print('JWT token retrieved')
+            log_info('JWT token retrieved')
+            return True
         else: 
             raise CapellaErrors("JWT fetch failed, Status Code: " + str(resp.status_code) +", Message: " + resp.reason)
         
@@ -156,7 +151,7 @@ class CapellaDeployments:
         if resp.status_code == 201:
             resp_obj = resp.json()
             self.variableDict['pid'] = resp_obj["id"]
-            print("Project Created successfully")
+            log_info("Project Created successfully")
         else:
             raise CapellaErrors("Project creation failed, Status Code: " + str(resp.status_code) +", Message: " + resp.reason)
         
@@ -166,7 +161,7 @@ class CapellaDeployments:
         }
         resp = self._session.delete("{}/v2/organizations/{}/projects/{}".format(self.apiUrl, self.tenantID, self.variableDict['pid']), headers=headers)
         if resp.status_code == 204:
-            print("Project Deleted successfully")
+            log_info("Project Deleted successfully")
         else:
             raise CapellaErrors("Project deletion failed, Status Code: " + str(resp.status_code) +", Message: " + resp.reason)
 
@@ -232,7 +227,7 @@ class CapellaDeployments:
             self.variableDict['clusterId'] = resp_obj['id']
             self.variableDict['clusterName'] = name
         else:
-            print(resp._content)
+            log_info("Error deploying cluster:" + resp._content)
 
     def getCluster(self):
         headers = {
@@ -253,15 +248,15 @@ class CapellaDeployments:
         while(datetime.now() < (currentTime + timedelta(minutes=130))):
             status = self.getCluster()
             if(type(status) == Response):
-                print(status)
+                log_info(status.status_code)
                 return "Failed to get cluster status"
             if status == "healthy":
-                print("cluster is in healthy state")
+                log_info("cluster is in healthy state")
                 return None
             if status == "deployment_failed":
-                print("cluster deployment failed")
+                log_info("cluster deployment failed")
                 return "Cluster Deployment Failed"
-            print("Cluster still deploying")
+            log_info("Cluster still deploying")
             time.sleep(5)
 
     def createBucket(self, template):
@@ -272,9 +267,9 @@ class CapellaDeployments:
         ans = json.dumps(template)
         resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/buckets".format(self.apiUrl, self.tenantID, self.variableDict['pid'], self.variableDict['clusterId']),headers=headers, data=ans)
         if resp.status_code == 201:
-            print("Bucket created successfully")
+            log_info("Bucket created successfully")
         else:
-            print(resp)
+            log_info(resp.status_code)
             raise CapellaErrors("Failed to create bucket")
         
     def createAppService(self, instanceType):
@@ -291,9 +286,9 @@ class CapellaDeployments:
         if resp.status_code == 202 :
             resp_object = resp_obj = resp.json()
             self.variableDict['backendId'] = resp_object['id']
-            print("AppService deploy start")
+            log_info("AppService deploy start")
         else:
-            print(resp)
+            log_info(resp.status_code)
             raise CapellaErrors("Failed to create app-service")
 
     def getAppService(self):
@@ -316,15 +311,15 @@ class CapellaDeployments:
         while(datetime.now() < (currentTime + timedelta(minutes=130))):
             status = self.getAppService()
             if(type(status) == Response):
-                print(status)
+                log_info(status.status_code)
                 return "Failed to get app-service status"
             if status == "healthy":
-                print("appservice is in healthy state")
+                log_info("appservice is in healthy state")
                 return None
             if status == "deployment_failed":
-                print("appservice deployment failed")
+                log_info("appservice deployment failed")
                 return "appservice Deployment Failed"
-            print("appservice still deploying")
+            log_info("appservice still deploying")
             time.sleep(5)
 
     def createAppEndpoint(self):
@@ -342,7 +337,7 @@ class CapellaDeployments:
         if resp.status_code == 200:
             self.variableDict['endpointName'] = name
         else:
-            print(resp)
+            log_info(resp.status_code)
             raise CapellaErrors("Failed to create app endpoint")
     
     def getAppEndPointUrls(self):
@@ -358,9 +353,9 @@ class CapellaDeployments:
         if resp.status_code == 200:
             resp_obj = resp.json()
             self.variableDict['adminURL'] = resp_obj['data']['adminURL']
-            self.variableDict['publicURl'] = resp_obj['data']['publicURL']
+            self.variableDict['publicURL'] = resp_obj['data']['publicURL']
         else:
-            print(resp)
+            log_info(resp.status_code)
             raise CapellaErrors("Failed to get connection urls")
         
     def myIPEndpoint(self):
@@ -383,7 +378,7 @@ class CapellaDeployments:
         }
         payload = json.dumps({
             "cidr": cidr,
-            "comment": "for testinf cbl"
+            "comment": "for testing cbl"
         })
         tenantId = self.tenantID
         projectId = self.variableDict['pid']
@@ -391,12 +386,12 @@ class CapellaDeployments:
         backendId = self.variableDict['backendId']
         resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/allowip".format(self.apiUrl, tenantId, projectId, clusterId, backendId), headers=headers, data=payload)
         if resp.status_code == 200:
-            print("IP address added")
+            log_info("IP address added")
         elif resp.status_code < 200 or resp.status_code >=300:
-            print("Unexpected error occured")
+            log_info("Unexpected error occured")
         else:
-            print("Failed to add IP")
-            print(resp)
+            log_info("Failed to add IP")
+            log_info(resp.status_code)
 
     def appEndpointAddAdminCredentials(self, username, password):
         headers = {
@@ -416,19 +411,19 @@ class CapellaDeployments:
             try:
                 resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases/{}/adminusers".format(self.apiUrl, tenantId, projectId, clusterId, backendId, appEndPointName), headers=headers, data=payload)
                 if resp.status_code == 200:
-                    print("Admin credentials added")
+                    log_info("Admin credentials added")
                     return
                 elif resp.status_code >= 200 and resp.status_code < 300:
-                    print("Unexpected error occurred")
+                    log_info("Unexpected error occurred")
                 else:
-                    print("Failed to add admin credentials")
-                    print(resp)
+                    log_info("Failed to add admin credentials")
+                    log_info(resp)
                     raise CapellaErrors("Failed to add admin users")
             except requests.exceptions.RequestException as err:
-                print("Connection Error: {} - Retrying".format(err))
+                log_info("Connection Error: {} - Retrying".format(err))
                 retries += 1
                 time.sleep(5)
-        print("Maximum number of retries exceeded")
+        log_info("Maximum number of retries exceeded")
 
     def resumeEndPoint(self):
         headers = {
@@ -477,10 +472,30 @@ class CapellaDeployments:
                 if target is None:
                     raise CapellaErrors("Endpoint not found")
                 if not "offline" in target:
-                    print("Endpoint resumed")
+                    log_info("Endpoint resumed")
                     break
                 else: 
-                    print("Endpoint is still paused")
+                    log_info("Endpoint is still paused")
+    
+    def appServiceReadyEndpoint(self):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        backendId = self.variableDict['backendId']
+        resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/ready".format(self.apiUrl, tenantId, projectId, clusterId, backendId), headers=headers)
+        return resp
+    
+    def waitForReady(self):
+        currentTime = datetime.now()
+        while(datetime.now() < (currentTime + timedelta(minutes=2))):
+            resp = self.appServiceReadyEndpoint()
+            if resp.status_code == 200:
+                log_info("App endpoint ready")
+                return
+        raise CapellaErrors("Not able to get 200 from ready endpoint")
 
     def AppServiceSetup(self, username="admin", password="Password123,"):
         myip = self.myIPEndpoint()
@@ -490,4 +505,6 @@ class CapellaDeployments:
         self.appServiceAllowIPEndpoint(cidr)
         self.resumeEndPoint()
         self.waitForEndpointResume()
+        self.waitForReady()
         self.appEndpointAddAdminCredentials(username, password)
+        return self.variableDict
