@@ -5,7 +5,7 @@ import zipfile
 import os
 import io
 
-from keywords.utils import log_info
+from keywords.utils import log_error, log_info
 from keywords.utils import clear_resources_pngs
 from keywords.MobileRestClient import MobileRestClient
 from keywords.TestServerFactory import TestServerFactory
@@ -137,7 +137,7 @@ def params_from_base_suite_setup(request):
     cbl_log_decoder_build = request.config.getoption("--cbl-log-decoder-build")
     liteserv_android_serial_number = request.config.getoption("--liteserv-android-serial-number")
     test_name = request.node.name
-    capellaSetup = capella.setupAppService(username, password, api_url, tenantId)
+    capellaSetup, deploy = capella.setupAppService(username, password, api_url, tenantId)
     target_url = capellaSetup['publicURL']
     target_admin_url = (capellaSetup['adminURL'])
     target_public_url = capellaSetup['publicURL'].replace("wss","https")
@@ -220,7 +220,8 @@ def params_from_base_suite_setup(request):
         "target_admin_url": target_admin_url,
         "base_url": base_url,
         "capellaSetup": capellaSetup,
-        "target_blip_url": target_blip_url
+        "target_blip_url": target_blip_url,
+        "deploy": deploy
     }
 
     if request.node.testsfailed != 0 and enable_file_logging and create_db_per_suite is not None:
@@ -284,6 +285,7 @@ def params_from_base_test_setup(request, params_from_base_suite_setup):
     public = params_from_base_suite_setup["target_public_url"]
     admin = params_from_base_suite_setup["target_admin_url"]
     target_blip_url = params_from_base_suite_setup["target_blip_url"]
+    deploy = params_from_base_suite_setup["deploy"]
 
     source_db = None
     test_name_cp = test_name.replace("/", "-")
@@ -356,7 +358,8 @@ def params_from_base_test_setup(request, params_from_base_suite_setup):
         "appService_url_public": public,
         "appService_url_admin": admin,
         "capellaSetup": capellaSetup,
-        "target_blip_url": target_blip_url
+        "target_blip_url": target_blip_url,
+        "deploy": deploy
     }
 
     if request.node.rep_call.failed and enable_file_logging and create_db_per_test is not None:
@@ -392,6 +395,12 @@ def params_from_base_test_setup(request, params_from_base_suite_setup):
                 testserver.stop()
         except Exception as err:
             log_info("Exception occurred: {}".format(err))
+
+        try:
+            capella.destroyResources(deploy)
+        except Exception as err:
+            log_error("Exception occurred: {}".format(err))
+            log_error("Resources left please destroy")
 
 
 @pytest.fixture(scope="class")

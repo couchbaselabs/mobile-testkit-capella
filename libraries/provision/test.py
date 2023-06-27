@@ -1,16 +1,14 @@
 from libraries.provision import deploy_capella_deploy
 from keywords.MobileRestClient import MobileRestClient
+from keywords.utils import log_info
 import string
 import random
 import json
 import time 
 
 def setupAppService(username, password, url, tenantId):
-# username = "abhay.aggrawal@couchbase.com"
-# password = "Dobara#22429"
-# url = "https://api.dev.nonprod-project-avengers.com"
         varialeDict=dict()
-# tenantID = "6af08c0a-8cab-4c1c-b257-b521575c16d0"
+        
         deploy = deploy_capella_deploy.CapellaDeployments(username, password, tenantId, url)
         deploy.getJwtToken(varialeDict)
 
@@ -34,9 +32,13 @@ def setupAppService(username, password, url, tenantId):
         deploy.waitForAppServiceHealth()
         deploy.createAppEndpoint()
         deploy.getAppEndPointUrls()
-        return deploy.AppServiceSetup()
+        return deploy.AppServiceSetup(), deploy
         # deploy.deleteProject()
 
-# obj = MobileRestClient()
-# auth = ("user","Password123,")
-# obj.request_session("https://ozlhhjh1zd8la6tc.apps.nonprod-project-avengers.com:4984/appendpoint", "user", password="Password123,", auth=auth)
+def destroyResources(deploy):
+        deploy.destroySyncGateway()
+        deploy.waitForAppServiceDelete()
+        deploy.deleteCluster()
+        deploy.waitForClusterDeletion()
+        deploy.deleteProject()
+        log_info('Resources deleted successfully')

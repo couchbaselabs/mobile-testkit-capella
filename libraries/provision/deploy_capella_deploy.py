@@ -1,4 +1,4 @@
-from keywords.utils import log_info
+from keywords.utils import log_error, log_info
 import requests
 from requests import Response, Session, head, session
 from requests.auth import HTTPBasicAuth
@@ -35,6 +35,7 @@ class Culture(Enum):
     Kanji = 2
     Hiragana = 3
 
+#custom error class
 class CapellaErrors(Exception):
     def __init__(self, message):
         self.message = message
@@ -130,6 +131,7 @@ class CapellaDeployments:
         self.tenantID = tenantID
         self._session = Session()
 
+    # get jwt token for authentication
     def getJwtToken(self, variableDict):
         resp = self._session.post("{}/sessions".format(self.apiUrl), auth=HTTPBasicAuth(self.username, self.password))
         if resp.status_code == 200:
@@ -508,3 +510,54 @@ class CapellaDeployments:
         self.waitForReady()
         self.appEndpointAddAdminCredentials(username, password)
         return self.variableDict
+    
+    def destroySyncGateway(self):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        backendId = self.variableDict['backendId']
+        currentTime = datetime.now()
+        resp = Response()
+        while(currentTime < currentTime + timedelta(minutes=5)):
+            resp = self._session.delete("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}".format(self.apiUrl, tenantId, projectId, clusterId, backendId), headers=headers)
+            if resp.status_code == 202:
+                log_info("Appservice deletion started")
+                break
+            elif resp.status_code == 404:
+                log_error("Appserice resource not found")
+                break
+            time.sleep(5)
+
+    def waitForAppServiceDelete(self):
+        currentTime  = datetime.now()
+        while(datetime.now() < (currentTime + timedelta(minutes=130))):
+            status = self.getAppService()
+            if(type(status) == Response):
+                log_info("Appservice deletion complete")
+                return
+            log_info("appservice still destroying")
+            time.sleep(5)
+
+    def deleteCluster(self):
+        headers = {
+            "Authorization": f"Bearer {self.variableDict['jwt']}"
+        }
+        tenantId = self.tenantID
+        projectId = self.variableDict['pid']
+        clusterId = self.variableDict['clusterId']
+        resp = self._session.delete("{}/v2/organizations/{}/projects/{}/clusters/{}".format(self.apiUrl, tenantId, projectId, clusterId), headers=headers)
+        if resp.status_code == 200:
+            log_info("Cluster destroy started")
+        else:
+            log_info("Failed to start cluster destroy")
+    
+    def waitForClusterDeletion(self):
+        currentTime  = datetime.now()
+        while(datetime.now() < (currentTime + timedelta(minutes=130))):
+            resp = self.getCluster()
+            if type(resp) == Response and resp.status_code == 404:
+                log_info("Cluster deleted")
+                break
