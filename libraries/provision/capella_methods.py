@@ -1,6 +1,6 @@
 from keywords.utils import log_error, log_info
 import requests
-from requests import Response, Session, head, session
+from requests import Response, Session
 from requests.auth import HTTPBasicAuth
 from enum import Enum
 import json
@@ -9,9 +9,8 @@ import string
 import time
 from datetime import datetime, timedelta
 
-from urllib3 import Retry
 
-#syncgateway specs class
+# syncgateway specs class
 class syncGatewaySpecs:
     def __init__(self, clusterId, instanceType, desiredCapacity, name):
         self.clusterId = clusterId
@@ -19,7 +18,8 @@ class syncGatewaySpecs:
         self.name = name
         self.compute = {"type": instanceType}
 
-#app-endpoint creation class
+
+# app-endpoint creation class
 class appEndPointCreate:
     def __init__(self, bucketName, name, delta_sync=False, importFilter="", sync=""):
         self.bucket = bucketName
@@ -28,6 +28,7 @@ class appEndPointCreate:
         self.import_filter = importFilter
         self.sync = sync
 
+
 # project
 class Culture(Enum):
     Mixed = 0
@@ -35,13 +36,15 @@ class Culture(Enum):
     Kanji = 2
     Hiragana = 3
 
-#custom error class
+
+# custom error class
 class CapellaErrors(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
 
-#project
+
+# project
 class NewProject:
     def __init__(self, name, tenant_id):
         self.culture = Culture(1)
@@ -52,7 +55,8 @@ class NewProject:
     def to_json(self):
         return json.dumps(self.__dict__)
 
-#project
+
+# project
 class ProjectPayload:
     def __init__(self, name, tenant_id, description=""):
         self.Name = name
@@ -62,7 +66,8 @@ class ProjectPayload:
     def to_json(self):
         return json.dumps(self.__dict__)
 
-#cluster
+
+# cluster
 class DiskConfig:
     def __init__(self, diskType=None, scenarioDiskType=None):
         self.CliDiskType = diskType
@@ -71,7 +76,8 @@ class DiskConfig:
     def to_json(self):
         return json.dumps(self.__dict__)
 
-#cluster
+
+# cluster
 class ClusterService:
     def __init__(self, type):
         self.Type = type
@@ -79,35 +85,42 @@ class ClusterService:
     def to_json(self):
         return json.dumps(self.__dict__)
 
-#cluster
+
+# cluster
 class ClusterInstance:
     def __init__(self, type, cpu=None, memoryinGB=50):
         self.type = type
         self.cpu = cpu
         self.memoryInGb = memoryinGB
+
     def to_json(self):
         return json.dumps(self.__dict__)
 
-#cluster
+
+# cluster
 class ClusterDisk:
     def __init__(self, type, sizeInGB, iops):
         self.type = type
         self.sizeInGb = sizeInGB
         self.iops = iops
+
     def to_json(self):
         return json.dumps(self.__dict__)
 
-#cluster
+
+# cluster
 class ClusterSpecs:
     def __init__(self, count, services=None, compute=None, disk=None):
         self.count = count
         self.services = services
         self.compute = compute
         self.disk = disk
+
     def to_json(self):
         return json.dumps(self.__dict__)
 
-#cluster
+
+# cluster
 class CreateCluster:
     def __init__(self, cidr, projectId, provider, region, singleAZ, name, server, timezone, specs=None):
         self.cidr = cidr
@@ -116,15 +129,16 @@ class CreateCluster:
         self.region = region
         self.description = ""
         self.specs = specs
-        self.singleAZ = singleAZ ==  None
+        self.singleAZ = singleAZ is None
         self.name = name
         self.server = server
         self.timezone = timezone
         self.plan = "Developer Pro"
 
+
 # base class
 class CapellaDeployments:
-    def __init__(self, username, password,tenantID, url):
+    def __init__(self, username, password, tenantID, url):
         self.username = username
         self.password = password
         self.apiUrl = url
@@ -132,40 +146,40 @@ class CapellaDeployments:
         self._session = Session()
 
     # get jwt token for authentication
-    def getJwtToken(self, variableDict):
+    def getJwtToken(self, resourceCredentials):
         resp = self._session.post("{}/sessions".format(self.apiUrl), auth=HTTPBasicAuth(self.username, self.password))
         if resp.status_code == 200:
             resp_obj = resp.json()
-            variableDict['jwt'] = resp_obj["jwt"]
-            self.variableDict = variableDict
+            resourceCredentials['jwt'] = resp_obj["jwt"]
+            self.resourceCredentials = resourceCredentials
             log_info('JWT token retrieved')
             return True
-        else: 
-            raise CapellaErrors("JWT fetch failed, Status Code: " + str(resp.status_code) +", Message: " + resp.reason)
-        
+        else:
+            raise CapellaErrors("JWT fetch failed, Status Code: " + str(resp.status_code) + ", Message: " + resp.reason)
+
     def createProject(self, projectName):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         project = NewProject(projectName, self.tenantID)
         projectPayload = ProjectPayload(project.name, project.tenant_id)
         resp = self._session.post("{}/v2/organizations/{}/projects".format(self.apiUrl, self.tenantID), headers=headers, data=projectPayload.to_json())
         if resp.status_code == 201:
             resp_obj = resp.json()
-            self.variableDict['pid'] = resp_obj["id"]
+            self.resourceCredentials['pid'] = resp_obj["id"]
             log_info("Project Created successfully")
         else:
-            raise CapellaErrors("Project creation failed, Status Code: " + str(resp.status_code) +", Message: " + resp.reason)
-        
+            raise CapellaErrors("Project creation failed, Status Code: " + str(resp.status_code) + ", Message: " + resp.reason)
+
     def deleteProject(self):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
-        resp = self._session.delete("{}/v2/organizations/{}/projects/{}".format(self.apiUrl, self.tenantID, self.variableDict['pid']), headers=headers)
+        resp = self._session.delete("{}/v2/organizations/{}/projects/{}".format(self.apiUrl, self.tenantID, self.resourceCredentials['pid']), headers=headers)
         if resp.status_code == 204:
             log_info("Project Deleted successfully")
         else:
-            raise CapellaErrors("Project deletion failed, Status Code: " + str(resp.status_code) +", Message: " + resp.reason)
+            raise CapellaErrors("Project deletion failed, Status Code: " + str(resp.status_code) + ", Message: " + resp.reason)
 
     def convertClusterTemplate(self, template):
         diskType = "gp3"
@@ -177,32 +191,29 @@ class CapellaDeployments:
         clusterDiskDict = vars(ClusterDisk(type=diskType, sizeInGB=data[0]['aws']['ebsSizeGib'], iops=iops))
         computeDict = "m5.xlarge"
 
-        clusterSpecsDict = {"count": data[0]['size'], "services": data[0]['services'], "disk": clusterDiskDict, "compute": computeDict, "diskAutoScaling": {
-                "enabled": True
-            }, "provider": "aws"}
+        clusterSpecsDict = {"count": data[0]['size'], "services": data[0]['services'], "disk": clusterDiskDict, "compute": computeDict, "diskAutoScaling": {"enabled": True}, "provider": "aws"}
         clusterSpecs.append(clusterSpecsDict)
         return clusterSpecs
-    
+
     def getDeploymentOptions(self):
         params = {
             "tenantId": self.tenantID
         }
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         resp = self._session.get("{}/v2/organizations/{}/clusters/deployment-options".format(self.apiUrl, self.tenantID), headers=headers, params=params)
         if resp.status_code == 200:
             resp_obj = resp.json()
-            self.variableDict['cidr'] = resp_obj["suggestedCidr"]
+            self.resourceCredentials['cidr'] = resp_obj["suggestedCidr"]
         else:
-            self.variableDict['cidr'] = "10.0.8.0/23"
+            self.resourceCredentials['cidr'] = "10.0.8.0/23"
 
     def createCluster(self, region, provider, template):
-        clusterName = ''.join(random.choices(string.ascii_lowercase +
-                             string.digits, k=8))
+        clusterName = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
         self.getDeploymentOptions()
-        cidr = self.variableDict['cidr']
-        projectId = self.variableDict['pid']
+        cidr = self.resourceCredentials['cidr']
+        projectId = self.resourceCredentials['pid']
         provider = provider
         region = region
         specs = self.convertClusterTemplate(template)
@@ -213,31 +224,30 @@ class CapellaDeployments:
         cluster = vars(cluster)
         cluster['specs'] = specs
         return cluster
-    
 
     def deployCluster(self, namePrefix, region, provider, template):
         cluster = self.createCluster(region, provider, template)
-        name =  namePrefix + cluster["name"]
+        name = namePrefix + cluster["name"]
         cluster["name"] = name
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         cluster = json.dumps(cluster)
         resp = self._session.post("{}/v2/organizations/{}/clusters".format(self.apiUrl, self.tenantID), data=cluster, timeout=10, headers=headers)
         if resp.status_code == 202:
             resp_obj = resp.json()
-            self.variableDict['clusterId'] = resp_obj['id']
-            self.variableDict['clusterName'] = name
+            self.resourceCredentials['clusterId'] = resp_obj['id']
+            self.resourceCredentials['clusterName'] = name
         else:
             log_info("Error deploying cluster:" + resp._content)
 
     def getCluster(self):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenanId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
         resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}".format(self.apiUrl, tenanId, projectId, clusterId), headers=headers)
         if resp.status_code == 200:
             resp_obj = resp.json()
@@ -246,7 +256,7 @@ class CapellaDeployments:
             return resp
 
     def waitForClusterHealth(self):
-        currentTime  = datetime.now()
+        currentTime = datetime.now()
         while(datetime.now() < (currentTime + timedelta(minutes=130))):
             status = self.getCluster()
             if(type(status) == Response):
@@ -263,31 +273,30 @@ class CapellaDeployments:
 
     def createBucket(self, template):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
-        self.variableDict['bucketName'] = template["name"]
+        self.resourceCredentials['bucketName'] = template["name"]
         ans = json.dumps(template)
-        resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/buckets".format(self.apiUrl, self.tenantID, self.variableDict['pid'], self.variableDict['clusterId']),headers=headers, data=ans)
+        resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/buckets".format(self.apiUrl, self.tenantID, self.resourceCredentials['pid'], self.resourceCredentials['clusterId']), headers=headers, data=ans)
         if resp.status_code == 201:
             log_info("Bucket created successfully")
         else:
             log_info(resp.status_code)
             raise CapellaErrors("Failed to create bucket")
-        
+
     def createAppService(self, instanceType):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
-        clusterId = self.variableDict['clusterId']
+        clusterId = self.resourceCredentials['clusterId']
         instanceType = instanceType
         desiredCapacity = 2
-        backendName = "test-" + ''.join(random.choices(string.ascii_lowercase +
-                             string.digits, k=4))
+        backendName = "test-" + ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
         specs = json.dumps(syncGatewaySpecs(clusterId, instanceType, desiredCapacity, backendName).__dict__)
         resp = self._session.post("{}/v2/organizations/{}/backends".format(self.apiUrl, self.tenantID), data=specs, headers=headers)
-        if resp.status_code == 202 :
-            resp_object = resp_obj = resp.json()
-            self.variableDict['backendId'] = resp_object['id']
+        if resp.status_code == 202:
+            resp_object = resp.json()
+            self.resourceCredentials['backendId'] = resp_object['id']
             log_info("AppService deploy start")
         else:
             log_info(resp.status_code)
@@ -295,21 +304,21 @@ class CapellaDeployments:
 
     def getAppService(self):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenanId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
-        backendId = self.variableDict['backendId']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
+        backendId = self.resourceCredentials['backendId']
         resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}".format(self.apiUrl, tenanId, projectId, clusterId, backendId), headers=headers)
         if resp.status_code == 200:
             resp_obj = resp.json()
             return resp_obj['data']['status']['state']
         else:
             return resp
-        
+
     def waitForAppServiceHealth(self):
-        currentTime  = datetime.now()
+        currentTime = datetime.now()
         while(datetime.now() < (currentTime + timedelta(minutes=130))):
             status = self.getAppService()
             if(type(status) == Response):
@@ -325,71 +334,71 @@ class CapellaDeployments:
             time.sleep(5)
 
     def createAppEndpoint(self):
-        bucketName = self.variableDict['bucketName']
+        bucketName = self.resourceCredentials['bucketName']
         name = "appendpoint"
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
-        backendId = self.variableDict['backendId']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
+        backendId = self.resourceCredentials['backendId']
         specs = json.dumps(appEndPointCreate(bucketName, name).__dict__)
         resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases".format(self.apiUrl, tenantId, projectId, clusterId, backendId), data=specs, headers=headers)
         if resp.status_code == 200:
-            self.variableDict['endpointName'] = name
+            self.resourceCredentials['endpointName'] = name
         else:
             log_info(resp.status_code)
             raise CapellaErrors("Failed to create app endpoint")
-    
+
     def getAppEndPointUrls(self):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
-        backendId = self.variableDict['backendId']
-        appEndPointName = self.variableDict['endpointName']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
+        backendId = self.resourceCredentials['backendId']
+        appEndPointName = self.resourceCredentials['endpointName']
         resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases/{}/connect".format(self.apiUrl, tenantId, projectId, clusterId, backendId, appEndPointName), headers=headers)
         if resp.status_code == 200:
             resp_obj = resp.json()
-            self.variableDict['adminURL'] = resp_obj['data']['adminURL']
-            self.variableDict['publicURL'] = resp_obj['data']['publicURL']
+            self.resourceCredentials['adminURL'] = resp_obj['data']['adminURL']
+            self.resourceCredentials['publicURL'] = resp_obj['data']['publicURL']
         else:
             log_info(resp.status_code)
             raise CapellaErrors("Failed to get connection urls")
-        
+
     def myIPEndpoint(self):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
         resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/myip".format(self.apiUrl, tenantId, projectId, clusterId), headers=headers)
         if resp.status_code == 200:
             resp_obj = resp.json()
             return resp_obj["ip"]
         else:
             return resp
-    
+
     def appServiceAllowIPEndpoint(self, cidr):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         payload = json.dumps({
             "cidr": cidr,
             "comment": "for testing cbl"
         })
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
-        backendId = self.variableDict['backendId']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
+        backendId = self.resourceCredentials['backendId']
         resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/allowip".format(self.apiUrl, tenantId, projectId, clusterId, backendId), headers=headers, data=payload)
         if resp.status_code == 200:
             log_info("IP address added")
-        elif resp.status_code < 200 or resp.status_code >=300:
+        elif resp.status_code < 200 or resp.status_code >= 300:
             log_info("Unexpected error occured")
         else:
             log_info("Failed to add IP")
@@ -397,13 +406,13 @@ class CapellaDeployments:
 
     def appEndpointAddAdminCredentials(self, username, password):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
-        backendId = self.variableDict['backendId']
-        appEndPointName = self.variableDict['endpointName']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
+        backendId = self.resourceCredentials['backendId']
+        appEndPointName = self.resourceCredentials['endpointName']
         payload = json.dumps({
             "name": username,
             "password": password
@@ -429,13 +438,13 @@ class CapellaDeployments:
 
     def resumeEndPoint(self):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
-        backendId = self.variableDict['backendId']
-        appEndPointName = self.variableDict['endpointName']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
+        backendId = self.resourceCredentials['backendId']
+        appEndPointName = self.resourceCredentials['endpointName']
         currentTime = datetime.now()
         while(datetime.now() < (currentTime + timedelta(minutes=5))):
             resp = self._session.post("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases/{}/online".format(self.apiUrl, tenantId, projectId, clusterId, backendId, appEndPointName), headers=headers)
@@ -443,25 +452,24 @@ class CapellaDeployments:
                 break
             elif resp.status_code == 404:
                 raise CapellaErrors("The resource doesn't exist")
-    
+
     def appServiceGetEndPoint(self):
         params = {
-            "page":1,
-            "perPage":10
+            "page": 1,
+            "perPage": 10
         }
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
-        backendId = self.variableDict['backendId']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
+        backendId = self.resourceCredentials['backendId']
         resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/databases".format(self.apiUrl, tenantId, projectId, clusterId, backendId), headers=headers, params=params)
         return resp
 
-
     def waitForEndpointResume(self):
-        appEndPointName = self.variableDict['endpointName']
+        appEndPointName = self.resourceCredentials['endpointName']
         currentTime = datetime.now()
         target = None
         while(datetime.now() < (currentTime + timedelta(minutes=2))):
@@ -473,23 +481,23 @@ class CapellaDeployments:
                         target = endpoint["data"]
                 if target is None:
                     raise CapellaErrors("Endpoint not found")
-                if not "offline" in target:
+                if "offline" not in target:
                     log_info("Endpoint resumed")
                     break
-                else: 
+                else:
                     log_info("Endpoint is still paused")
-    
+
     def appServiceReadyEndpoint(self):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
-        backendId = self.variableDict['backendId']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
+        backendId = self.resourceCredentials['backendId']
         resp = self._session.get("{}/v2/organizations/{}/projects/{}/clusters/{}/backends/{}/ready".format(self.apiUrl, tenantId, projectId, clusterId, backendId), headers=headers)
         return resp
-    
+
     def waitForReady(self):
         currentTime = datetime.now()
         while(datetime.now() < (currentTime + timedelta(minutes=2))):
@@ -509,16 +517,16 @@ class CapellaDeployments:
         self.waitForEndpointResume()
         self.waitForReady()
         self.appEndpointAddAdminCredentials(username, password)
-        return self.variableDict
-    
+        return self.resourceCredentials
+
     def destroySyncGateway(self):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
-        backendId = self.variableDict['backendId']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
+        backendId = self.resourceCredentials['backendId']
         currentTime = datetime.now()
         resp = Response()
         while(currentTime < currentTime + timedelta(minutes=5)):
@@ -532,7 +540,7 @@ class CapellaDeployments:
             time.sleep(5)
 
     def waitForAppServiceDelete(self):
-        currentTime  = datetime.now()
+        currentTime = datetime.now()
         while(datetime.now() < (currentTime + timedelta(minutes=130))):
             status = self.getAppService()
             if(type(status) == Response):
@@ -543,19 +551,19 @@ class CapellaDeployments:
 
     def deleteCluster(self):
         headers = {
-            "Authorization": f"Bearer {self.variableDict['jwt']}"
+            "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         tenantId = self.tenantID
-        projectId = self.variableDict['pid']
-        clusterId = self.variableDict['clusterId']
+        projectId = self.resourceCredentials['pid']
+        clusterId = self.resourceCredentials['clusterId']
         resp = self._session.delete("{}/v2/organizations/{}/projects/{}/clusters/{}".format(self.apiUrl, tenantId, projectId, clusterId), headers=headers)
         if resp.status_code == 200:
             log_info("Cluster destroy started")
         else:
             log_info("Failed to start cluster destroy")
-    
+
     def waitForClusterDeletion(self):
-        currentTime  = datetime.now()
+        currentTime = datetime.now()
         while(datetime.now() < (currentTime + timedelta(minutes=130))):
             resp = self.getCluster()
             if type(resp) == Response and resp.status_code == 404:

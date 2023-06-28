@@ -230,7 +230,7 @@ class MobileRestClient:
         resp.raise_for_status()
         return resp
 
-    def create_session(self, url, name, db=None ,password=None, ttl=86400, auth=None):
+    def create_session(self, url, name, db=None, password=None, ttl=86400, auth=None):
         if db is None:
             resp = self.request_session(url, name, password=password, ttl=ttl, auth=auth)
         else:
@@ -910,7 +910,7 @@ class MobileRestClient:
         params["show_exp"] = "true"
         if collection is not None:
             if scope is None:
-                if db == None:
+                if db is None:
                     url_string = "{}.{}/{}".format(url, collection, doc_id)
                 else:
                     url_string = "{}/{}.{}/{}".format(url, db, collection, doc_id)
@@ -919,7 +919,7 @@ class MobileRestClient:
         else:
             if scope is not None:
                 assert "When the scope is defined, the collection must be  defined  as well"
-            if db == None:
+            if db is None:
                 url_string = "{}/{}".format(url, doc_id)
             else:
                 url_string = "{}/{}/{}".format(url, db, doc_id)
@@ -1379,7 +1379,7 @@ class MobileRestClient:
 
         auth_type, auth = get_auth_type(auth)
         if doc is None:
-                doc = self.get_doc(url, db, doc_id, auth)
+            doc = self.get_doc(url, db, doc_id, auth)
 
         if rev is None:
             current_rev = doc["_rev"]
@@ -1424,7 +1424,7 @@ class MobileRestClient:
                 types.verify_is_callable(property_updater)
                 doc = property_updater(doc)
 
-            if db == None:
+            if db is None:
                 if auth_type == AuthType.session:
                     resp = self._session.put("{}/{}".format(url, doc_id), data=json.dumps(doc, cls=MyEncoder), cookies=dict(SyncGatewaySession=auth[1]))
                 elif auth_type == AuthType.http_basic:
@@ -1618,7 +1618,7 @@ class MobileRestClient:
         if include_docs:
             params["include_docs"] = "true"
 
-        if db == None:
+        if db is None:
             all_docs_url = "{}/_all_docs".format(url)
         else:
             all_docs_url = "{}/{}/_all_docs".format(url, db)

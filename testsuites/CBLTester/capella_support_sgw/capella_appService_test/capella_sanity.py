@@ -1,26 +1,10 @@
 import pytest
 import time
-import os
-import random
 
 from keywords.MobileRestClient import MobileRestClient
-from keywords.ClusterKeywords import ClusterKeywords
-from keywords import couchbaseserver
 from keywords.utils import log_info
 from CBLClient.Database import Database
 from CBLClient.Replication import Replication
-from CBLClient.Document import Document
-from CBLClient.Authenticator import Authenticator
-from concurrent.futures import ThreadPoolExecutor
-from libraries.testkit.prometheus import verify_stat_on_prometheus
-from keywords.SyncGateway import sync_gateway_config_path_for_mode
-from keywords import document, attachment
-from libraries.testkit import cluster
-from utilities.cluster_config_utils import persist_cluster_config_environment_prop, copy_to_temp_conf
-from keywords.attachment import generate_2_png_100_100
-from keywords.SyncGateway import SyncGateway
-from libraries.testkit.syncgateway import get_buckets_from_sync_gateway_config
-from keywords.constants import RBAC_FULL_ADMIN
 
 
 @pytest.fixture(scope="function")
@@ -55,7 +39,6 @@ def test_replication_configuration_valid_values(params_from_base_test_setup, num
         3. Start replication with push and pull
         4. Verify replication is successful and verify docs exist
     """
-    sg_db = "db"
     appService_url_public = params_from_base_test_setup["appService_url_public"]
     appService_url_admin = params_from_base_test_setup["appService_url_admin"]
     appService_blip_url = params_from_base_test_setup["target_blip_url"]
@@ -89,7 +72,7 @@ def test_replication_configuration_valid_values(params_from_base_test_setup, num
     assert total == completed, "total is not equal to completed"
     time.sleep(2)  # wait until replication is done
     sg_docs = sg_client.get_all_docs(url=appService_url_public, include_docs=True, auth=session)
-    sg_docs = sg_docs["rows"] 
+    sg_docs = sg_docs["rows"]
 
     # Verify database doc counts
     cbl_doc_count = db.getCount(cbl_db)

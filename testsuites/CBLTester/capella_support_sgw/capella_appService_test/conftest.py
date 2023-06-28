@@ -37,7 +37,7 @@ def pytest_addoption(parser):
     parser.addoption("--api-url",
                      action="store",
                      help="url of the capella")
-    
+
     parser.addoption("--username",
                      action="store",
                      help="username to sign-in on capella")
@@ -45,7 +45,7 @@ def pytest_addoption(parser):
     parser.addoption("--password",
                      action="store",
                      help="password to sign-in on capella")
-    
+
     parser.addoption("--tenantId",
                      action="store",
                      help="tenantId of the capella organization")
@@ -195,8 +195,9 @@ def params_from_base_suite_setup(request):
     capellaSetup, deploy = capella.setupAppService(username, password, api_url, tenantId)
     target_url = capellaSetup['publicURL']
     target_admin_url = (capellaSetup['adminURL'])
-    target_public_url = capellaSetup['publicURL'].replace("wss","https")
+    target_public_url = capellaSetup['publicURL'].replace("wss", "https")
     target_blip_url = capellaSetup['publicURL']
+
     yield {
         "liteserv_platform": liteserv_platform,
         "liteserv_version": liteserv_version,
@@ -465,7 +466,7 @@ def setup_customized_teardown_test(request, params_from_base_test_setup):
     cbl_db3 = db.create(cbl_db_name3, db_config)
     log_info("setting up all 3 dbs")
 
-    yield { 
+    yield {
         "db": db,
         "cbl_db_name1": cbl_db_name1,
         "cbl_db_name2": cbl_db_name2,
