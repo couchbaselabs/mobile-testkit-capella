@@ -557,7 +557,7 @@ class CapellaDeployments:
         projectId = self.resourceCredentials['pid']
         clusterId = self.resourceCredentials['clusterId']
         resp = self._session.delete("{}/v2/organizations/{}/projects/{}/clusters/{}".format(self.apiUrl, tenantId, projectId, clusterId), headers=headers)
-        if resp.status_code == 200:
+        if resp.status_code == 202:
             log_info("Cluster destroy started")
         else:
             log_info("Failed to start cluster destroy")
