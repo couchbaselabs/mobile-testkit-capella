@@ -192,11 +192,14 @@ def params_from_base_suite_setup(request):
         db_name = suite_db.getName(suite_source_db)
         assert db_name == suite_cbl_db
 
-    capellaSetup, deploy = capella.setupAppService(username, password, api_url, tenantId)
-    target_url = capellaSetup['publicURL']
-    target_admin_url = (capellaSetup['adminURL'])
-    target_public_url = capellaSetup['publicURL'].replace("wss", "https")
-    target_blip_url = capellaSetup['publicURL']
+    try:
+        capellaSetup, deploy = capella.setupAppService(username, password, api_url, tenantId)
+        target_url = capellaSetup['publicURL']
+        target_admin_url = (capellaSetup['adminURL'])
+        target_public_url = capellaSetup['publicURL'].replace("wss", "https")
+        target_blip_url = capellaSetup['publicURL']
+    except Exception as err:
+        log_error("Failed to setup appService due to: " + err)
 
     yield {
         "liteserv_platform": liteserv_platform,

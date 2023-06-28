@@ -560,7 +560,7 @@ class CapellaDeployments:
         if resp.status_code == 202:
             log_info("Cluster destroy started")
         else:
-            log_info("Failed to start cluster destroy")
+            raise CapellaErrors("Failed to destroy cluster")
 
     def waitForClusterDeletion(self):
         currentTime = datetime.now()
