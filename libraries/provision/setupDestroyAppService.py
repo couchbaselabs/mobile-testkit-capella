@@ -1,4 +1,4 @@
-from libraries.provision import deploy_capella_deploy
+from libraries.provision import capella_methods
 from keywords.MobileRestClient import MobileRestClient
 from keywords.utils import log_info
 import string
@@ -9,7 +9,7 @@ import time
 def setupAppService(username, password, url, tenantId):
         varialeDict=dict()
         
-        deploy = deploy_capella_deploy.CapellaDeployments(username, password, tenantId, url)
+        deploy = capella_methods.CapellaDeployments(username, password, tenantId, url)
         deploy.getJwtToken(varialeDict)
 
         projectName ="mobile-" + ''.join(random.choices(string.ascii_uppercase +

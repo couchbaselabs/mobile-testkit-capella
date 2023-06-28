@@ -24,7 +24,7 @@ from CBLClient.DataTypeInitiator import DataTypeInitiator
 from CBLClient.SessionAuthenticator import SessionAuthenticator
 from CBLClient.Utils import Utils
 from CBLClient.ReplicatorConfiguration import ReplicatorConfiguration
-import libraries.provision.test as capella
+import libraries.provision.setupDestroyAppService as capella
 
 
 def pytest_addoption(parser):
@@ -191,7 +191,7 @@ def params_from_base_suite_setup(request):
         log_info("Getting the database name")
         db_name = suite_db.getName(suite_source_db)
         assert db_name == suite_cbl_db
-        
+
     capellaSetup, deploy = capella.setupAppService(username, password, api_url, tenantId)
     target_url = capellaSetup['publicURL']
     target_admin_url = (capellaSetup['adminURL'])
