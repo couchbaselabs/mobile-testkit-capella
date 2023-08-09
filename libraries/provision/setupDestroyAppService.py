@@ -17,7 +17,9 @@ def setupAppService(username, password, url, tenantId):
     clustertemplateFile = "libraries/provision/quick-3.json"
     with open(clustertemplateFile, 'r') as file:
         clustertemplate = json.load(file)
+    print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^BEFORE CLUSTER DEPLOY")
     deploy.deployCluster("mobile", "us-west-2", "aws", clustertemplate)
+    print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^AFTER CLUSTER DEPLOY")
     deploy.waitForClusterHealth()
 
     time.sleep(10)
