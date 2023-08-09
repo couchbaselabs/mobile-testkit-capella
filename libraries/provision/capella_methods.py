@@ -163,12 +163,6 @@ class CapellaDeployments:
         }
         project = NewProject(projectName, self.tenantID)
         projectPayload = ProjectPayload(project.name, project.tenant_id)
-        print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        print(str(projectPayload.to_json()))
-        print(str(self.apiUrl))
-        print(str(self.tenantID))
-        print(str(headers))
-        print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         resp = self._session.post("{}/v2/organizations/{}/projects".format(self.apiUrl, self.tenantID), headers=headers, data=projectPayload.to_json())
         if resp.status_code == 201:
             resp_obj = resp.json()
@@ -239,7 +233,7 @@ class CapellaDeployments:
             "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         cluster = json.dumps(cluster)
-        print("++++++++++++++++++++++++++++++++++++++++++++++BEFORE API CALL")
+        print("=============================================" + cluster)
         resp = self._session.post("{}/v2/organizations/{}/clusters".format(self.apiUrl, self.tenantID), data=cluster, timeout=10, headers=headers)
         resp.raise_for_status()
         resp_obj = resp.json()
