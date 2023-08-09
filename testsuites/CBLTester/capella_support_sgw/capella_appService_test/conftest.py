@@ -199,7 +199,7 @@ def params_from_base_suite_setup(request):
         target_public_url = capellaSetup['publicURL'].replace("wss", "https")
         target_blip_url = capellaSetup['publicURL']
     except Exception as err:
-        log_error("Failed to setup appService due to: " + str(err))
+        log_error(f"Failed to setup appService due to: {str(err)}")
 
     yield {
         "liteserv_platform": liteserv_platform,
