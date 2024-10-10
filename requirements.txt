@@ -65,3 +65,4 @@ pytest-rerunfailures==8.0
 flask==1.1.2
 typing-extensions==3.7.4.3
 werkzeug==2.0.3
+virtualenv==20.0.35
