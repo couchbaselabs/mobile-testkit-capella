@@ -19,7 +19,7 @@ def setupAppService(username, password, url, tenantId):
     log_info('Deploying cluster template')
     deploy.deployCluster("mobile", "us-west-2", "aws", clustertemplate)
     deploy.waitForClusterHealth()
-
+    log_info("cluster deployed")
     time.sleep(10)
 
     bucketTemplateFile = "libraries/provision/bucket_template.json"
@@ -29,11 +29,13 @@ def setupAppService(username, password, url, tenantId):
     deploy.createBucket(buckettemplate)
 
     instanceType = "c5.2xlarge"
+    log_info("deploy.createAppService(instanceType)")
     deploy.createAppService(instanceType)
-
+    log_info("deploy.waitForAppServiceHealth()")
     deploy.waitForAppServiceHealth()
     deploy.createAppEndpoint()
     deploy.getAppEndPointUrls()
+    log_info("Function exec completed")
     return deploy.AppServiceSetup(), deploy
 
 
