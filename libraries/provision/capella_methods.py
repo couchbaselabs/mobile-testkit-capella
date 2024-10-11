@@ -244,7 +244,7 @@ class CapellaDeployments:
         log_info(req)
         if isinstance(cluster, bytes):
             cluster = cluster.decode('utf-8')
-        resp = self._session.post(req, data=str(cluster), timeout=10, headers=headers)
+        resp = self._session.post(req, data=cluster, timeout=10, headers=headers)
         if resp.status_code == 202:
             resp_obj = resp.json()
             self.resourceCredentials['clusterId'] = resp_obj['id']
