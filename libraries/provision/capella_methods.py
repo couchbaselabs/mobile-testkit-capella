@@ -238,8 +238,8 @@ class CapellaDeployments:
             "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
         cluster = json.dumps(cluster)
-        log_info("json dums")
-        resp = self._session.post("{}/v2/organizations/{}/clusters".format(self.apiUrl, self.tenantID), data=cluster, timeout=10, headers=headers)
+        log_info("json dums"+type(cluster))
+        resp = self._session.post("{}/v2/organizations/{}/clusters".format(self.apiUrl, self.tenantID), data=str(cluster), timeout=10, headers=headers)
         if resp.status_code == 202:
             resp_obj = resp.json()
             self.resourceCredentials['clusterId'] = resp_obj['id']
