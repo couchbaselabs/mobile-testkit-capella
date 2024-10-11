@@ -224,13 +224,16 @@ class CapellaDeployments:
         cluster = CreateCluster(cidr, projectId, provider, region, singleAZ, name, server_versions, "PT")
         cluster = vars(cluster)
         cluster['specs'] = specs
+        log_info('cluster specs'+str(cluster))
         return cluster
 
     def deployCluster(self, namePrefix, region, provider, template):
         log_info('Deploy cluster')
         cluster = self.createCluster(region, provider, template)
+        log_info("cluster specs created")
         name = namePrefix + cluster["name"]
         cluster["name"] = name
+        log_info("Name: "+name)
         headers = {
             "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
