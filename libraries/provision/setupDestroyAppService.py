@@ -10,13 +10,13 @@ def setupAppService(username, password, url, tenantId):
     resourceCredentials = dict()
     deploy = capella_methods.CapellaDeployments(username, password, tenantId, url)
     deploy.getJwtToken(resourceCredentials)
-
     projectName = "mobile-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
     deploy.createProject(projectName)
-
+    log_info('Project created'+projectName)
     clustertemplateFile = "libraries/provision/quick-3.json"
     with open(clustertemplateFile, 'r') as file:
         clustertemplate = json.load(file)
+    log_info('Deploying cluster template')
     deploy.deployCluster("mobile", "us-west-2", "aws", clustertemplate)
     deploy.waitForClusterHealth()
 

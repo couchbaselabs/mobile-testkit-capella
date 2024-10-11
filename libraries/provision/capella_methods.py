@@ -210,6 +210,7 @@ class CapellaDeployments:
             self.resourceCredentials['cidr'] = "10.0.8.0/23"
 
     def createCluster(self, region, provider, template):
+        log_info('creating cluster')
         clusterName = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
         self.getDeploymentOptions()
         cidr = self.resourceCredentials['cidr']
@@ -226,6 +227,7 @@ class CapellaDeployments:
         return cluster
 
     def deployCluster(self, namePrefix, region, provider, template):
+        log_info('Deploy cluster')
         cluster = self.createCluster(region, provider, template)
         name = namePrefix + cluster["name"]
         cluster["name"] = name
