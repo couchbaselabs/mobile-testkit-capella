@@ -240,7 +240,9 @@ class CapellaDeployments:
         cluster = json.dumps(cluster)
         log_info(cluster)
         log_info("json dums"+str(cluster))
-        resp = self._session.post("{}/v2/organizations/{}/clusters".format(self.apiUrl, self.tenantID), data=str(cluster), timeout=10, headers=headers)
+        req="{}/v2/organizations/{}/clusters".format(self.apiUrl, self.tenantID)
+        log_info(req)
+        resp = self._session.post(req, data=str(cluster), timeout=10, headers=headers)
         if resp.status_code == 202:
             resp_obj = resp.json()
             self.resourceCredentials['clusterId'] = resp_obj['id']
