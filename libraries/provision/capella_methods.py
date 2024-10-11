@@ -132,7 +132,7 @@ class CreateCluster:
         self.singleAZ = singleAZ is None
         self.name = name
         self.server = server
-        self.timezone = timezone
+        # self.timezone = timezone
         self.plan = "Developer Pro"
 
 
@@ -220,7 +220,7 @@ class CapellaDeployments:
         specs = self.convertClusterTemplate(template)
         singleAZ = True
         name = clusterName
-        server_versions = "7.1"
+        server_versions = "7.6"
         cluster = CreateCluster(cidr, projectId, provider, region, singleAZ, name, server_versions, "PT")
         cluster = vars(cluster)
         cluster['specs'] = specs
@@ -240,7 +240,7 @@ class CapellaDeployments:
         cluster = json.dumps(cluster)
         log_info(cluster)
         log_info("json dums"+str(cluster))
-        req="{}/v2/organizations/{}/clusters".format(self.apiUrl, self.tenantID)
+        req="{}/v2/organizations/{}/clusters/deploy".format(self.apiUrl, self.tenantID)
         log_info(req)
         resp = self._session.post(req, data=cluster, timeout=10, headers=headers)
         log_info("req sent"+str(resp))
