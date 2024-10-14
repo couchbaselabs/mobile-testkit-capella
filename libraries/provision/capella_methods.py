@@ -251,7 +251,7 @@ class CapellaDeployments:
         clusterObj=ClusterOperationsAPIs(url=self.apiUrl,bearer_token=self.resourceCredentials['jwt'],secret=None,access=None)
         log_info("object created")
         resp=clusterObj.create_cluster(organizationId=self.tenantID,projectId=self.pid,cloudProvider=provider,couchbaseServer="7.6",
-                                  serviceGroups=cluster['specs'],headers=headers)
+                                  serviceGroups=cluster['specs'],headers=headers, name=name)
         # resp = self._session.post(req, data=cluster, timeout=10, headers=headers)
         # restapi.capella.common.CapellaAPI_v4.APIRequests
         
