@@ -146,11 +146,12 @@ class CreateCluster:
 
 # base class
 class CapellaDeployments:
-    def __init__(self, username, password, tenantID, url):
+    def __init__(self, username, password, tenantID, url,projectId):
         self.username = username
         self.password = password
         self.apiUrl = url
         self.tenantID = tenantID
+        self.pid = projectId
         self._session = Session()
 
 
@@ -175,7 +176,7 @@ class CapellaDeployments:
         resp = self._session.post("{}/v2/organizations/{}/projects".format(self.apiUrl, self.tenantID), headers=headers, data=projectPayload.to_json())
         if resp.status_code == 201:
             resp_obj = resp.json()
-            self.resourceCredentials['pid'] = resp_obj["id"]
+            self.pid = resp_obj["id"]
             log_info("Project Created successfully")
         else:
             raise CapellaErrors("Project creation failed, Status Code: " + str(resp.status_code) + ", Message: " + resp.reason)
@@ -190,19 +191,15 @@ class CapellaDeployments:
         else:
             raise CapellaErrors("Project deletion failed, Status Code: " + str(resp.status_code) + ", Message: " + resp.reason)
 
-    def convertClusterTemplate(self, template):
-        diskType = "gp3"
-        data = template["servers"]
-        if data[0]['aws']['ebsSizeGib'] == "":
-            raise CapellaErrors("Failed to deploy cluster: invalid ebs size")
-        iops = 3000
-        clusterSpecs = list()
-        clusterDiskDict = vars(ClusterDisk(type=diskType, sizeInGB=data[0]['aws']['ebsSizeGib'], iops=iops))
-        computeDict = "m5.xlarge"
+    # def convertClusterTemplate(self, template):
+    #     diskType = "gp3"
+    #     data = template["serviceGroups"]
+    #     iops = 3000
+    #     clusterSpecs = list()
 
-        clusterSpecsDict = {"count": data[0]['size'], "services": data[0]['services'], "disk": clusterDiskDict, "compute": computeDict, "diskAutoScaling": {"enabled": True}, "provider": "aws"}
-        clusterSpecs.append(clusterSpecsDict)
-        return clusterSpecs
+    #     clusterSpecsDict = {"count": data[0]['size'], "services": data[0]['services'], "disk": clusterDiskDict, "compute": computeDict, "diskAutoScaling": {"enabled": True}, "provider": "aws"}
+    #     clusterSpecs.append(clusterSpecsDict)
+    #     return clusterSpecs
 
     def getDeploymentOptions(self):
         params = {
@@ -223,10 +220,10 @@ class CapellaDeployments:
         clusterName = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
         self.getDeploymentOptions()
         cidr = self.resourceCredentials['cidr']
-        projectId = self.resourceCredentials['pid']
+        projectId = self.pid
         provider = provider
         region = region
-        specs = self.convertClusterTemplate(template)
+        specs = template["serviceGroups"]
         singleAZ = True
         name = clusterName
         server_versions = "7.6"
@@ -246,16 +243,17 @@ class CapellaDeployments:
         headers = {
             "Authorization": f"Bearer {self.resourceCredentials['jwt']}"
         }
-        cluster = json.dumps(cluster)
+        # cluster = json.dumps(cluster)
         log_info(cluster)
         log_info("json dums"+str(cluster))
         req="{}/v2/organizations/{}/clusters/deploy".format(self.apiUrl, self.tenantID)
         log_info(req)
         clusterObj=ClusterOperationsAPIs(url=self.apiUrl,bearer_token=self.resourceCredentials['jwt'],secret=None,access=None)
-        clusterObj.create_cluster(organizationId=self.tenantID,projectId=self.resourceCredentials['pid'],cloudProvider=provider,couchbaseServer="7.6",
+        log_info("object created")
+        resp=clusterObj.create_cluster(organizationId=self.tenantID,projectId=self.pid,cloudProvider=provider,couchbaseServer="7.6",
                                   serviceGroups=cluster['specs'],headers=headers)
         # resp = self._session.post(req, data=cluster, timeout=10, headers=headers)
-        restapi.capella.common.CapellaAPI_v4.APIRequests
+        # restapi.capella.common.CapellaAPI_v4.APIRequests
         
         log_info("req sent"+str(resp))
         if resp.status_code == 202:

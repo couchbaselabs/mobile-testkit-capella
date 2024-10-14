@@ -49,6 +49,10 @@ def pytest_addoption(parser):
     parser.addoption("--tenantId",
                      action="store",
                      help="tenantId of the capella organization")
+    
+    parser.addoption("--projectId",
+                     action="store",
+                     help="projectId of the capella organization")
 
     parser.addoption("--liteserv-platform",
                      action="store",
@@ -125,6 +129,7 @@ def params_from_base_suite_setup(request):
     username = request.config.getoption("--username")
     password = request.config.getoption("--password")
     tenantId = request.config.getoption("--tenantId")
+    projectId = request.config.getoption("--projectId")
     use_local_testserver = request.config.getoption("--use-local-testserver")
     create_db_per_test = request.config.getoption("--create-db-per-test")
     create_db_per_suite = request.config.getoption("--create-db-per-suite")
@@ -194,7 +199,7 @@ def params_from_base_suite_setup(request):
         assert db_name == suite_cbl_db
 
     try:
-        capellaSetup, deploy = capella.setupAppService(username, password, api_url, tenantId)
+        capellaSetup, deploy = capella.setupAppService(username, password, api_url, tenantId,projectId)
         target_url = capellaSetup['publicURL']
         target_admin_url = (capellaSetup['adminURL'])
         target_public_url = capellaSetup['publicURL'].replace("wss", "https")

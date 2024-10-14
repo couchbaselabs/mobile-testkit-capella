@@ -6,13 +6,14 @@ import json
 import time
 
 
-def setupAppService(username, password, url, tenantId):
+def setupAppService(username, password, url, tenantId,projectId):
     resourceCredentials = dict()
-    deploy = capella_methods.CapellaDeployments(username, password, tenantId, url)
+    deploy = capella_methods.CapellaDeployments(username, password, tenantId, url,projectId)
     deploy.getJwtToken(resourceCredentials)
-    projectName = "mobile-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-    deploy.createProject(projectName)
-    log_info('Project created'+projectName)
+    if projectId is None:
+        projectName = "mobile-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        deploy.createProject(projectName)
+        log_info('Project created'+projectName)
     clustertemplateFile = "libraries/provision/quick-3.json"
     with open(clustertemplateFile, 'r') as file:
         clustertemplate = json.load(file)
