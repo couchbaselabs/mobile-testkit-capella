@@ -251,7 +251,7 @@ class CapellaDeployments:
         log_info("json dums"+str(cluster))
         req="{}/v2/organizations/{}/clusters/deploy".format(self.apiUrl, self.tenantID)
         log_info(req)
-        clusterObj=ClusterOperationsAPIs(url=self.apiUrl,bearer_token=self.resourceCredentials['jwt'],)
+        clusterObj=ClusterOperationsAPIs(url=self.apiUrl,bearer_token=self.resourceCredentials['jwt'],secret=None,access=None)
         clusterObj.create_cluster(organizationId=self.tenantID,projectId=self.resourceCredentials['pid'],cloudProvider=provider,couchbaseServer="7.6",
                                   serviceGroups=cluster['specs'],headers=headers)
         # resp = self._session.post(req, data=cluster, timeout=10, headers=headers)
