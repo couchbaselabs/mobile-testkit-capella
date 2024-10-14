@@ -7,7 +7,15 @@ import json
 import random
 import string
 import time
+import restapi
 from datetime import datetime, timedelta
+
+import restapi.capella
+# import restapi.capella.common
+# import restapi.capella.common.CapellaAPI_v4
+from restapi.capella.common import APIRequests
+from restapi.capella.common.CapellaAPI_v4 import CommonCapellaAPI
+from restapi.capella.dedicated.CapellaAPI_v4 import ClusterOperationsAPIs
 
 
 # syncgateway specs class
@@ -145,6 +153,7 @@ class CapellaDeployments:
         self.tenantID = tenantID
         self._session = Session()
 
+
     # get jwt token for authentication
     def getJwtToken(self, resourceCredentials):
         resp = self._session.post("{}/sessions".format(self.apiUrl), auth=HTTPBasicAuth(self.username, self.password))
@@ -242,7 +251,12 @@ class CapellaDeployments:
         log_info("json dums"+str(cluster))
         req="{}/v2/organizations/{}/clusters/deploy".format(self.apiUrl, self.tenantID)
         log_info(req)
-        resp = self._session.post(req, data=cluster, timeout=10, headers=headers)
+        clusterObj=ClusterOperationsAPIs(url=self.apiUrl,bearer_token=self.resourceCredentials['jwt'],)
+        clusterObj.create_cluster(organizationId=self.tenantID,projectId=self.resourceCredentials['pid'],cloudProvider=provider,couchbaseServer="7.6",
+                                  serviceGroups=cluster['specs'],headers=headers)
+        # resp = self._session.post(req, data=cluster, timeout=10, headers=headers)
+        restapi.capella.common.CapellaAPI_v4.APIRequests
+        
         log_info("req sent"+str(resp))
         if resp.status_code == 202:
             log_info("202")

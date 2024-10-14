@@ -1,1 +1,4 @@
 
+[submodule "restapi"]
+	path = restapi
+	url = https://github.com/couchbaselabs/CapellaRESTAPIs.git
