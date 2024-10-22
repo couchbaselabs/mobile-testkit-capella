@@ -512,9 +512,11 @@ class CapellaDeployments:
         raise CapellaErrors("Not able to get 200 from ready endpoint")
 
     def AppServiceSetup(self, username="admin", password="Password123,"):
-        myip = self.myIPEndpoint()
-        if type(myip) == Response:
-            raise CapellaErrors("Failed to fetch the IP")
+        session = requests.Session()
+        resp = session.get("https://ifconfig.me")
+        if resp.status_code != 200:
+            raise Exception("Fetch public IP failed!")
+        myip = resp.content.decode()
         cidr = myip + '/32'
         self.appServiceAllowIPEndpoint(cidr)
         self.resumeEndPoint()
