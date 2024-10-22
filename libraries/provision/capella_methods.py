@@ -207,7 +207,7 @@ class CapellaDeployments:
             resp_obj = resp.json()
             self.resourceCredentials['cidr'] = resp_obj["suggestedCidr"]
         else:
-            self.resourceCredentials['cidr'] = "10.0.8.0/23"
+            self.resourceCredentials['cidr'] = "10.0.8.0/24"
 
     def createCluster(self, region, provider, template):
         clusterName = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
