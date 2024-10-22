@@ -219,7 +219,7 @@ class CapellaDeployments:
         specs = self.convertClusterTemplate(template)
         singleAZ = True
         name = clusterName
-        server_versions = "7.1"
+        server_versions = "7.6"
         cluster = CreateCluster(cidr, projectId, provider, region, singleAZ, name, server_versions, "PT")
         cluster = vars(cluster)
         cluster['specs'] = specs
